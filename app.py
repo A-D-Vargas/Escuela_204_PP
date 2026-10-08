@@ -157,7 +157,7 @@ else:
             st.info("Puedes usar la carga directa desde la app o ingresar mediante el Google Form oficial de la institución.")
             
             # Enlace/acceso rápido al Google Forms institucional
-            st.link_button("🔗 Abrir Formulario de Asistencia (Google Forms)", "https://docs.google.com/forms")
+            st.link_button("🔗 Abrir Formulario de Asistencia (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLSc46TWUXwAdRfPggqiuhDhaEyrvpw1W04NdzpcZ7jGAOgDF5g/viewform?usp=dialog")
             st.markdown("---")
             
             with st.form("form_registro_asistencia"):
@@ -173,6 +173,10 @@ else:
             col_m, col_t = st.columns(2)
             materia = col_m.selectbox("Materia", ["Lengua", "Matemática", "Educación Física"])
             trimestre = col_t.selectbox("Trimestre", ["1er trimestre", "2do trimestre", "3er trimestre"])
+
+            # Enlace/acceso rápido al Google Forms institucional
+            st.link_button("🔗 Abrir Formulario de notas (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLSdqJ8wLoft_ujZrcCfwymKZjj5SICRyn-hsEGsT7J5qnbr_tw/viewform?usp=dialog")
+            st.markdown("---")
             
             # Formulario interactivo tipo planilla
             df_notas_grid = df_alumnos[['DNI', 'Apellido y Nombre', 'Grado y Sección Actual']].copy()
