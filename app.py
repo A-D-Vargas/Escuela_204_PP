@@ -186,28 +186,37 @@ else:
     elif menu_seleccionado == "📅 Registro de Asistencia":
         st.title("📅 Planilla de asistencia")
         
-        # 1. Buscamos la columna que contiene el porcentaje (incluso si varía el nombre)
-        col_porcentaje = [c for c in df_asistencia.columns if "porcentaje" in str(c).lower() or "asistencia" in str(c).lower() and c != df_asistencia.columns[1]]
-        nombre_col_pct = col_porcentaje[0] if col_porcentaje else None
+        # 1. Identificar la columna de estudiante (primera útil)
+        col_nombre = df_asistencia.columns[1] if len(df_asistencia.columns) > 1 else df_asistencia.columns[0]
         
-        # 2. Filtramos columnas válidas eliminando las 'Unnamed' intercaladas
-        cols_fechas_y_nombre = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed')]
+        # 2. Identificar las columnas de fechas (excluyendo todas las Unnamed)
+        cols_fechas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed') and c != col_nombre and "porcentaje" not in str(c).lower()]
         
-        df_asistencia_limpio = df_asistencia[cols_fechas_y_nombre].copy()
+        # 3. Identificar la columna de porcentaje (última columna del Sheet)
+        col_porcentaje = df_asistencia.columns[-1]
         
-        # 3. Si existe la columna de porcentaje, formateamos a porcentaje bonito
-        if nombre_col_pct and nombre_col_pct in df_asistencia_limpio.columns:
-            df_asistencia_limpio[nombre_col_pct] = df_asistencia_limpio[nombre_col_pct].apply(
-                lambda x: f"{float(x) * 100:.1f}%" if pd.notnull(x) and isinstance(x, (int, float)) and float(x) <= 1.0 else (f"{float(x):.1f}%" if pd.notnull(x) and isinstance(x, (int, float)) else str(x))
-            )
+        # 4. Construir la tabla ÚNICAMENTE con las columnas que interesan
+        cols_finales = [col_nombre] + cols_fechas + [col_porcentaje]
+        df_asistencia_limpio = df_asistencia[cols_finales].copy()
+        
+        # 5. Formatear la columna de porcentaje (ej: 1.0 -> 100.0%, 0.75 -> 75.0%)
+        df_asistencia_limpio[col_porcentaje] = df_asistencia_limpio[col_porcentaje].apply(
+            lambda x: f"{float(x) * 100:.1f}%" if pd.notnull(x) and isinstance(x, (int, float)) and float(x) <= 1.0 
+            else (f"{float(x):.1f}%" if pd.notnull(x) and isinstance(x, (int, float)) else str(x))
+        )
+        
+        # 6. Darle un nombre limpio a las fechas
+        df_asistencia_limpio.columns = [
+            c.strftime('%d/%m/%Y') if hasattr(c, 'strftime') else str(c) 
+            for c in df_asistencia_limpio.columns
+        ]
 
-        # 4. Mostramos la tabla en pantalla con ancho completo
+        # 7. Renderizar en Streamlit
         st.dataframe(
             df_asistencia_limpio, 
             use_container_width=True,
             hide_index=True
         )
-
     # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN ---
     elif menu_seleccionado == "🔍 Consulta de Boletín / Legajo":
         st.title("🔍 Consulta Individual de Estudiante")
