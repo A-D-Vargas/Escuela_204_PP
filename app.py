@@ -150,7 +150,7 @@ else:
     elif menu_seleccionado == "📝 Cargar Asistencia / Notas":
         st.title("📝 Gestión y Registro de Datos Escolares")
         
-        tab_asistencia, tab_notas = st.tabs(["📋 Toma de Asistencia", "✏️ Registro de Calificaciones"])
+        tab_asistencia, tab_notas = st.tabs(["📋 Asistencia", "✏️ Calificaciones"])
         
         with tab_asistencia:
             st.subheader("Carga de asistencia")
@@ -164,34 +164,11 @@ else:
         with tab_notas:
             st.subheader("Carga de Calificaciones Trimestrales")
             col_m, col_t = st.columns(2)
-            materia = col_m.selectbox("Materia", ["Lengua", "Matemática", "Educación Física"])
-            trimestre = col_t.selectbox("Trimestre", ["1er trimestre", "2do trimestre", "3er trimestre"])
-
+            
             # Enlace/acceso rápido al Google Forms institucional
             st.link_button("🔗 Abrir Formulario de notas (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLSdqJ8wLoft_ujZrcCfwymKZjj5SICRyn-hsEGsT7J5qnbr_tw/viewform?usp=dialog")
             st.markdown("---")
             
-            # Formulario interactivo tipo planilla
-            df_notas_grid = df_alumnos[['DNI', 'Apellido y Nombre', 'Grado y Sección Actual']].copy()
-            df_notas_grid['Nota'] = "Muy bien"
-            
-            edited_df = st.data_editor(
-                df_notas_grid,
-                column_config={
-                    "Nota": st.column_config.SelectboxColumn(
-                        "Calificación",
-                        options=["Excelente", "Muy bien", "Bien", "Regular", "Insuficiente"],
-                        required=True
-                    )
-                },
-                disabled=["DNI", "Apellido y Nombre", "Grado y Sección Actual"],
-                hide_index=True,
-                use_container_width=True
-            )
-            
-            if st.button("💾 Guardar Calificaciones"):
-                st.success(f"Notas guardadas con éxito para {materia} ({trimestre}).")
-
     # --- MÓDULO 3: PADRÓN DE ALUMNOS ---
     elif menu_seleccionado == "👥 Padrón de Alumnos":
         st.title("👥 Base de Datos General de Estudiantes")
