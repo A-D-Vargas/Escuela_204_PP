@@ -117,22 +117,54 @@ else:
     if menu_seleccionado == "📊 Dashboard & Alertas":
         st.title("📊 Panel Institucional y Alertas Tempranas")
         
+        # 1. Procesamiento y limpieza de Alertas para mostrar solo DNI, Nombre y % Asistencia
+        df_alertas_limpio = df_alertas.dropna(subset=[df_alertas.columns[1]]).copy()
+        df_alertas_limpio.columns = ['Apellido y Nombre', 'Porcentaje']
+        
+        # Filtrar encabezados y textos no deseados
+        df_alertas_limpio = df_alertas_limpio[df_alertas_limpio['Porcentaje'] != '% ASISTENCIA'].copy()
+        
+        # Convertir DNI a entero/texto y cruzar con la lista de alumnos
+        if 'DNI' in df_alumnos.columns and 'Apellido y Nombre' in df_alumnos.columns:
+            df_alertas_limpio = pd.merge(
+                df_alertas_limpio, 
+                df_alumnos[['DNI', 'Apellido y Nombre']], 
+                on='Apellido y Nombre', 
+                how='left'
+            )
+            # Reordenar columnas a DNI, Apellido y Nombre, % Asistencia
+            df_alertas_limpio = df_alertas_limpio[['DNI', 'Apellido y Nombre', 'Porcentaje']]
+            df_alertas_limpio['DNI'] = df_alertas_limpio['DNI'].fillna('-').astype(str).str.replace('.0', '', regex=False)
+        else:
+            df_alertas_limpio.columns = ['Apellido y Nombre', '% Asistencia']
+
+        # Formatear el porcentaje a formato legible (ej: 50,00%)
+        df_alertas_limpio['% Asistencia'] = df_alertas_limpio['Porcentaje'].apply(
+            lambda x: f"{float(x) * 100:.2f}%".replace('.', ',') if pd.notnull(x) and isinstance(x, (int, float, str)) and str(x).replace('.','',1).isdigit() and float(x) <= 1.0 
+            else (f"{float(x):.2f}%".replace('.', ',') if pd.notnull(x) and isinstance(x, (int, float, str)) and str(x).replace('.','',1).isdigit() else str(x))
+        )
+        
+        # Eliminar columna auxiliar de porcentaje original si existe
+        if 'Porcentaje' in df_alertas_limpio.columns:
+            df_alertas_limpio = df_alertas_limpio.drop(columns=['Porcentaje'])
+
         # Indicadores numéricos principales
         c1, c2, c3 = st.columns(3)
-        c1.metric("Alumnos Matriculados", len(df_alumnos))
+        c1.metric("Matrícula Total", len(df_alumnos))
         cursando_count = len(df_alumnos[df_alumnos['Estado de Matrícula'] == 'Cursando']) if 'Estado de Matrícula' in df_alumnos.columns else len(df_alumnos)
         c2.metric("Alumnos Cursando", cursando_count)
-        
-        # Filtro de alertas
-        alertas_filtradas = df_alertas.dropna(how='all')
-        c3.metric("Alumnos en Riesgo", len(alertas_filtradas) - 2 if len(alertas_filtradas) > 2 else 0)
+        c3.metric("Casos en Riesgo (<60%)", len(df_alertas_limpio))
         
         st.markdown("---")
         col_left, col_right = st.columns([1, 1])
         
         with col_left:
             st.subheader("⚠️ Estudiantes en Riesgo de Deserción")
-            st.dataframe(alertas_filtradas, use_container_width=True)
+            st.dataframe(
+                df_alertas_limpio, 
+                use_container_width=True, 
+                hide_index=True
+            )
             
         with col_right:
             st.subheader("📈 Semáforo de Asistencia Global")
@@ -145,7 +177,7 @@ else:
                     hole=0.4
                 )
                 st.plotly_chart(fig, use_container_width=True)
-
+                
     # --- MÓDULO 2: CARGA DE ASISTENCIA Y CALIFICACIONES ---
     elif menu_seleccionado == "📝 Cargar Asistencia / Notas":
         st.title("📝 Gestión y Registro de Datos Escolares")
