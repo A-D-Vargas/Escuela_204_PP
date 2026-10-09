@@ -186,23 +186,26 @@ else:
     elif menu_seleccionado == "📅 Registro de Asistencia":
         st.title("📅 Planilla de asistencia")
         
-        # 1. Filtramos eliminando solo las columnas que empiezan con 'Unnamed:'
-        # De esta forma conservamos las fechas, el nombre y la columna 'Porcentaje de asistencia'
-        cols_validas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed')]
-        df_asistencia_limpio = df_asistencia[cols_validas].copy()
+        # 1. Buscamos la columna que contiene el porcentaje (incluso si varía el nombre)
+        col_porcentaje = [c for c in df_asistencia.columns if "porcentaje" in str(c).lower() or "asistencia" in str(c).lower() and c != df_asistencia.columns[1]]
+        nombre_col_pct = col_porcentaje[0] if col_porcentaje else None
         
-        # 2. Formateamos el porcentaje para que se vea legible (ej: 100% o 85%) si existe la columna
-        if 'Porcentaje de asistencia' in df_asistencia_limpio.columns:
-            # Si los valores vienen como decimales (ej: 1.0 o 0.85), se convierten a porcentaje
-            df_asistencia_limpio['Porcentaje de asistencia'] = df_asistencia_limpio['Porcentaje de asistencia'].apply(
-                lambda x: f"{float(x) * 100:.1f}%" if pd.notnull(x) and isinstance(x, (int, float)) else str(x)
+        # 2. Filtramos columnas válidas eliminando las 'Unnamed' intercaladas
+        cols_fechas_y_nombre = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed')]
+        
+        df_asistencia_limpio = df_asistencia[cols_fechas_y_nombre].copy()
+        
+        # 3. Si existe la columna de porcentaje, formateamos a porcentaje bonito
+        if nombre_col_pct and nombre_col_pct in df_asistencia_limpio.columns:
+            df_asistencia_limpio[nombre_col_pct] = df_asistencia_limpio[nombre_col_pct].apply(
+                lambda x: f"{float(x) * 100:.1f}%" if pd.notnull(x) and isinstance(x, (int, float)) and float(x) <= 1.0 else (f"{float(x):.1f}%" if pd.notnull(x) and isinstance(x, (int, float)) else str(x))
             )
 
-        # 3. Mostramos la tabla limpia en Streamlit
+        # 4. Mostramos la tabla en pantalla con ancho completo
         st.dataframe(
             df_asistencia_limpio, 
             use_container_width=True,
-            hide_index=True  # Oculta la columna de números de índice (0, 1, 2...)
+            hide_index=True
         )
 
     # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN ---
