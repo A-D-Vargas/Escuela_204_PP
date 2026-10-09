@@ -186,16 +186,23 @@ else:
     elif menu_seleccionado == "📅 Registro de Asistencia":
         st.title("📅 Planilla de asistencia")
         
-        # Limpieza de columnas en blanco y columnas auxiliares sin nombre
-        df_asistencia_limpio = df_asistencia.dropna(how='all', axis=1)
+        # 1. Filtramos eliminando solo las columnas que empiezan con 'Unnamed:'
+        # De esta forma conservamos las fechas, el nombre y la columna 'Porcentaje de asistencia'
+        cols_validas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed')]
+        df_asistencia_limpio = df_asistencia[cols_validas].copy()
         
-        # Eliminar columnas con el patrón 'Unnamed'
-        df_asistencia_limpio = df_asistencia_limpio.loc[:, ~df_asistencia_limpio.columns.str.startswith('Unnamed')]
-        
+        # 2. Formateamos el porcentaje para que se vea legible (ej: 100% o 85%) si existe la columna
+        if 'Porcentaje de asistencia' in df_asistencia_limpio.columns:
+            # Si los valores vienen como decimales (ej: 1.0 o 0.85), se convierten a porcentaje
+            df_asistencia_limpio['Porcentaje de asistencia'] = df_asistencia_limpio['Porcentaje de asistencia'].apply(
+                lambda x: f"{float(x) * 100:.1f}%" if pd.notnull(x) and isinstance(x, (int, float)) else str(x)
+            )
+
+        # 3. Mostramos la tabla limpia en Streamlit
         st.dataframe(
             df_asistencia_limpio, 
             use_container_width=True,
-            hide_index=True  # Oculta el índice numérico (0, 1, 2...) de la izquierda
+            hide_index=True  # Oculta la columna de números de índice (0, 1, 2...)
         )
 
     # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN ---
