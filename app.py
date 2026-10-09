@@ -119,13 +119,13 @@ else:
         
         # Indicadores numéricos principales
         c1, c2, c3 = st.columns(3)
-        c1.metric("Matrícula Total", len(df_alumnos))
+        c1.metric("Alumnos Matriculados", len(df_alumnos))
         cursando_count = len(df_alumnos[df_alumnos['Estado de Matrícula'] == 'Cursando']) if 'Estado de Matrícula' in df_alumnos.columns else len(df_alumnos)
         c2.metric("Alumnos Cursando", cursando_count)
         
         # Filtro de alertas
         alertas_filtradas = df_alertas.dropna(how='all')
-        c3.metric("Casos en Riesgo (<60%)", len(alertas_filtradas) - 2 if len(alertas_filtradas) > 2 else 0)
+        c3.metric("Alumnos en Riesgo", len(alertas_filtradas) - 2 if len(alertas_filtradas) > 2 else 0)
         
         st.markdown("---")
         col_left, col_right = st.columns([1, 1])
