@@ -186,31 +186,43 @@ else:
     elif menu_seleccionado == "📅 Registro de Asistencia":
         st.title("📅 Planilla de asistencia")
         
-        # 1. Identificar la columna de estudiante (primera útil)
+        # 1. Identificar la columna del estudiante
         col_nombre = df_asistencia.columns[1] if len(df_asistencia.columns) > 1 else df_asistencia.columns[0]
         
-        # 2. Identificar las columnas de fechas (excluyendo todas las Unnamed)
+        # 2. Identificar las columnas de fechas
         cols_fechas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed') and c != col_nombre and "porcentaje" not in str(c).lower()]
         
-        # 3. Identificar la columna de porcentaje (última columna del Sheet)
+        # 3. Tomar la última columna de la matriz (la que contiene los porcentajes)
         col_porcentaje = df_asistencia.columns[-1]
         
-        # 4. Construir la tabla ÚNICAMENTE con las columnas que interesan
+        # 4. Construir el DataFrame con las columnas seleccionadas
         cols_finales = [col_nombre] + cols_fechas + [col_porcentaje]
         df_asistencia_limpio = df_asistencia[cols_finales].copy()
         
-        # 5. Formatear la columna de porcentaje (ej: 1.0 -> 100.0%, 0.75 -> 75.0%)
+        # 5. Formatear los valores numéricos a porcentaje con comas/puntos (ej: 100,00%)
         df_asistencia_limpio[col_porcentaje] = df_asistencia_limpio[col_porcentaje].apply(
-            lambda x: f"{float(x) * 100:.1f}%" if pd.notnull(x) and isinstance(x, (int, float)) and float(x) <= 1.0 
-            else (f"{float(x):.1f}%" if pd.notnull(x) and isinstance(x, (int, float)) else str(x))
+            lambda x: f"{float(x) * 100:.2f}%".replace('.', ',') if pd.notnull(x) and isinstance(x, (int, float)) and float(x) <= 1.0 
+            else (f"{float(x):.2f}%".replace('.', ',') if pd.notnull(x) and isinstance(x, (int, float)) else str(x))
         )
         
-        # 6. Darle un nombre limpio a las fechas
-        df_asistencia_limpio.columns = [
-            c.strftime('%d/%m/%Y') if hasattr(c, 'strftime') else str(c) 
-            for c in df_asistencia_limpio.columns
-        ]
+        # 6. Limpiar los nombres de los encabezados (formato fecha DD/MM/YYYY)
+        nuevos_encabezados = []
+        for col in df_asistencia_limpio.columns:
+            if col == col_porcentaje:
+                nuevos_encabezados.append("Porcentaje de asistencia")
+            elif hasattr(col, 'strftime'):
+                nuevos_encabezados.append(col.strftime('%d/%m/%Y'))
+            else:
+                nuevos_encabezados.append(str(col))
+                
+        df_asistencia_limpio.columns = nuevos_encabezados
 
+        # 7. Renderizar en Streamlit
+        st.dataframe(
+            df_asistencia_limpio, 
+            use_container_width=True,
+            hide_index=True
+        )
         # 7. Renderizar en Streamlit
         st.dataframe(
             df_asistencia_limpio, 
