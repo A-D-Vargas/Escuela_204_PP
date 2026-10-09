@@ -153,7 +153,7 @@ else:
         tab_asistencia, tab_notas = st.tabs(["📋 Toma de Asistencia", "✏️ Registro de Calificaciones"])
         
         with tab_asistencia:
-            st.subheader("Control de Presentismo")
+            st.subheader("Carga de asistencia")
             st.info("Puedes usar la carga directa desde la app o ingresar mediante el Google Form oficial de la institución.")
             
             # Enlace/acceso rápido al Google Forms institucional
