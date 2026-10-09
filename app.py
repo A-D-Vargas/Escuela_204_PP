@@ -154,8 +154,7 @@ else:
         
         with tab_asistencia:
             st.subheader("Carga de asistencia")
-            #st.info("Puedes usar la carga directa desde la app o ingresar mediante el Google Form oficial de la institución.")
-            
+                      
             # Enlace/acceso rápido al Google Forms institucional
             st.link_button("🔗 Abrir Formulario de Asistencia (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLSc46TWUXwAdRfPggqiuhDhaEyrvpw1W04NdzpcZ7jGAOgDF5g/viewform?usp=dialog")
             st.markdown("---")
@@ -170,8 +169,8 @@ else:
             st.markdown("---")
             
     # --- MÓDULO 3: PADRÓN DE ALUMNOS ---
-    elif menu_seleccionado == "👥 Padrón de Alumnos":
-        st.title("👥 Base de Datos General de Estudiantes")
+    elif menu_seleccionado == "👥 Legajo de Alumnos":
+        st.title("👥 Base de Datos de alumnos ")
         
         # 1. Filtramos las columnas útiles hasta "Causa de Abandono" (eliminando las que empiezan por Unnamed)
         columnas_padron = [c for c in df_alumnos.columns if not str(c).startswith('Unnamed')]
@@ -197,7 +196,7 @@ else:
             hide_index=True
         )
     # --- MÓDULO 4: REGISTRO DE ASISTENCIA ---
-    elif menu_seleccionado == "📅 Registro de Asistencia":
+    elif menu_seleccionado == "📅 Planilla de Asistencia":
         st.title("📅 Planilla de asistencia")
         
         # 1. Identificar la columna del estudiante
