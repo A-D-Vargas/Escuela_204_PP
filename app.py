@@ -173,15 +173,29 @@ else:
     elif menu_seleccionado == "👥 Padrón de Alumnos":
         st.title("👥 Base de Datos General de Estudiantes")
         
-        grados = ["Todos"] + list(df_alumnos['Grado y Sección Actual'].dropna().unique()) if 'Grado y Sección Actual' in df_alumnos.columns else ["Todos"]
+        # 1. Filtramos las columnas útiles hasta "Causa de Abandono" (eliminando las que empiezan por Unnamed)
+        columnas_padron = [c for c in df_alumnos.columns if not str(c).startswith('Unnamed')]
+        df_alumnos_limpio = df_alumnos[columnas_padron].copy()
+        
+        # 2. Filtro por Grado en la barra lateral
+        grados = ["Todos"] + list(df_alumnos_limpio['Grado y Sección Actual'].dropna().unique()) if 'Grado y Sección Actual' in df_alumnos_limpio.columns else ["Todos"]
         grado_sel = st.sidebar.selectbox("Filtrar por Grado:", grados)
         
-        df_display = df_alumnos.copy()
         if grado_sel != "Todos":
-            df_display = df_display[df_display['Grado y Sección Actual'] == grado_sel]
+            df_alumnos_limpio = df_alumnos_limpio[df_alumnos_limpio['Grado y Sección Actual'] == grado_sel]
             
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        # 3. Formatear la fecha 'Año de Ingreso' si se lee como timestamp
+        if 'Año de Ingreso' in df_alumnos_limpio.columns:
+            df_alumnos_limpio['Año de Ingreso'] = df_alumnos_limpio['Año de Ingreso'].apply(
+                lambda x: x.strftime('%d/%m/%Y') if hasattr(x, 'strftime') else str(x)
+            )
 
+        # 4. Mostrar el padrón limpio en pantalla
+        st.dataframe(
+            df_alumnos_limpio, 
+            use_container_width=True,
+            hide_index=True
+        )
     # --- MÓDULO 4: REGISTRO DE ASISTENCIA ---
     elif menu_seleccionado == "📅 Registro de Asistencia":
         st.title("📅 Planilla de asistencia")
