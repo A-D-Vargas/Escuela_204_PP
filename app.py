@@ -13,7 +13,7 @@ st.set_page_config(
 SHEET_ID = "1w4bE2GRG8UDYHkDEBNYpd22nDeX9D3MCVgALKDP8UJw"
 
 # -------------------------------------------------------------------
-# 1. BASE DE DATOS DE USUARIOS Y ROLES (Simulada para demostración)
+# 1. BASE DE DATOS DE USUARIOS Y ROLES
 # -------------------------------------------------------------------
 USUARIOS = {
     "director": {"pass": "dir123", "rol": "Director/a", "nombre": "Dirección Institucional"},
@@ -86,21 +86,21 @@ else:
     st.sidebar.markdown("---")
 
     # -------------------------------------------------------------------
-    # 4. RUTEO DE MENÚ SEGÚN EL ROL DE USUARIO
+    # 4. RUTEO DE MENÚ SEGÚN EL ROL DE USUARIO (Nombres sincronizados)
     # -------------------------------------------------------------------
     if st.session_state.user_role == "Director/a":
         opciones_menu = [
             "📊 Dashboard & Alertas", 
-            "👥 Padrón de Alumnos", 
-            "📅 Registro de Asistencia", 
+            "👥 Legajo de Alumnos", 
+            "📅 Planilla de Asistencia", 
             "📝 Cargar Asistencia / Notas",
             "🔍 Consulta de Boletín / Legajo"
         ]
     elif st.session_state.user_role == "Docente":
         opciones_menu = [
             "📝 Cargar Asistencia / Notas", 
-            "📅 Registro de Asistencia", 
-            "👥 Padrón de Alumnos"
+            "📅 Planilla de Asistencia", 
+            "👥 Legajo de Alumnos"
         ]
     else:  # Alumnado y Familias
         opciones_menu = [
@@ -152,26 +152,20 @@ else:
         
         tab_asistencia, tab_notas = st.tabs(["📋 Asistencia", "✏️ Calificaciones"])
 
-        
         with tab_asistencia:
             st.subheader("Carga de asistencia")
-                      
-            # Enlace/acceso rápido al Google Forms institucional
             st.link_button("🔗 Abrir Formulario de Asistencia (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLSc46TWUXwAdRfPggqiuhDhaEyrvpw1W04NdzpcZ7jGAOgDF5g/viewform?usp=dialog")
             st.markdown("---")
-            
 
         with tab_notas:
             st.subheader("Carga de Calificaciones Trimestrales")
             col_m, col_t = st.columns(2)
-            
-            # Enlace/acceso rápido al Google Forms institucional
             st.link_button("🔗 Abrir Formulario de notas (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLSdqJ8wLoft_ujZrcCfwymKZjj5SICRyn-hsEGsT7J5qnbr_tw/viewform?usp=dialog")
             st.markdown("---")
             
-    # --- MÓDULO 3: PADRÓN DE ALUMNOS ---
+    # --- MÓDULO 3: LEGAJO DE ALUMNOS ---
     elif menu_seleccionado == "👥 Legajo de Alumnos":
-        st.title("👥 Base de Datos de alumnos ")
+        st.title("👥 Base de Datos de Alumnos")
         
         # 1. Filtramos las columnas útiles hasta "Causa de Abandono" (eliminando las que empiezan por Unnamed)
         columnas_padron = [c for c in df_alumnos.columns if not str(c).startswith('Unnamed')]
@@ -196,9 +190,10 @@ else:
             use_container_width=True,
             hide_index=True
         )
+
     # --- MÓDULO 4: REGISTRO DE ASISTENCIA ---
     elif menu_seleccionado == "📅 Planilla de Asistencia":
-        st.title("📅 Planilla de asistencia")
+        st.title("📅 Planilla de Asistencia")
         
         # 1. Identificar la columna del estudiante
         col_nombre = df_asistencia.columns[1] if len(df_asistencia.columns) > 1 else df_asistencia.columns[0]
@@ -237,6 +232,7 @@ else:
             use_container_width=True,
             hide_index=True
         )
+
     # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN ---
     elif menu_seleccionado == "🔍 Consulta de Boletín / Legajo":
         st.title("🔍 Consulta Individual de Estudiante")
