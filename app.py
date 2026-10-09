@@ -154,19 +154,19 @@ else:
         
         with tab_asistencia:
             st.subheader("Carga de asistencia")
-            st.info("Puedes usar la carga directa desde la app o ingresar mediante el Google Form oficial de la institución.")
+            #st.info("Puedes usar la carga directa desde la app o ingresar mediante el Google Form oficial de la institución.")
             
             # Enlace/acceso rápido al Google Forms institucional
             st.link_button("🔗 Abrir Formulario de Asistencia (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLSc46TWUXwAdRfPggqiuhDhaEyrvpw1W04NdzpcZ7jGAOgDF5g/viewform?usp=dialog")
             st.markdown("---")
             
-            with st.form("form_registro_asistencia"):
+            '''with st.form("form_registro_asistencia"):
                 fecha = st.date_input("Fecha de registro")
                 grado = st.selectbox("Grado y Sección", ["1° A Mañana", "1° B Mañana", "1° C Tarde"])
                 alumnos_ausentes = st.text_area("Estudiantes Ausentes / Observaciones", placeholder="Ej: Vargas Alex, Aguirre Alma...")
                 
                 if st.form_submit_button("Guardar Asistencia"):
-                    st.success(f"Asistencia de {grado} guardada para la fecha {fecha}.")
+                    st.success(f"Asistencia de {grado} guardada para la fecha {fecha}.")'''
 
         with tab_notas:
             st.subheader("Carga de Calificaciones Trimestrales")
