@@ -223,12 +223,6 @@ else:
             use_container_width=True,
             hide_index=True
         )
-        # 7. Renderizar en Streamlit
-        st.dataframe(
-            df_asistencia_limpio, 
-            use_container_width=True,
-            hide_index=True
-        )
     # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN ---
     elif menu_seleccionado == "🔍 Consulta de Boletín / Legajo":
         st.title("🔍 Consulta Individual de Estudiante")
