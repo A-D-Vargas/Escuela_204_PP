@@ -184,8 +184,19 @@ else:
 
     # --- MÓDULO 4: REGISTRO DE ASISTENCIA ---
     elif menu_seleccionado == "📅 Registro de Asistencia":
-        st.title("📅 Matriz General de Presentismo")
-        st.dataframe(df_asistencia, use_container_width=True)
+        st.title("📅 Planilla de asistencia")
+        
+        # Limpieza de columnas en blanco y columnas auxiliares sin nombre
+        df_asistencia_limpio = df_asistencia.dropna(how='all', axis=1)
+        
+        # Eliminar columnas con el patrón 'Unnamed'
+        df_asistencia_limpio = df_asistencia_limpio.loc[:, ~df_asistencia_limpio.columns.str.startswith('Unnamed')]
+        
+        st.dataframe(
+            df_asistencia_limpio, 
+            use_container_width=True,
+            hide_index=True  # Oculta el índice numérico (0, 1, 2...) de la izquierda
+        )
 
     # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN ---
     elif menu_seleccionado == "🔍 Consulta de Boletín / Legajo":
