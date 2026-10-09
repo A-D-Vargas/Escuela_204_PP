@@ -151,6 +151,7 @@ else:
         st.title("📝 Gestión y Registro de Datos Escolares")
         
         tab_asistencia, tab_notas = st.tabs(["📋 Asistencia", "✏️ Calificaciones"])
+
         
         with tab_asistencia:
             st.subheader("Carga de asistencia")
