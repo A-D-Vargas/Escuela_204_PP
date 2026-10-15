@@ -256,44 +256,77 @@ else:
     elif menu_seleccionado == "📅 Planilla de Asistencia":
         st.title("📅 Planilla de Asistencia")
         
-        # 1. Identificar la columna del estudiante
+        # 1. Identificar columna de estudiante y lista de fechas
         col_nombre = df_asistencia.columns[1] if len(df_asistencia.columns) > 1 else df_asistencia.columns[0]
-        
-        # 2. Identificar las columnas de fechas
         cols_fechas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed') and c != col_nombre and "porcentaje" not in str(c).lower()]
         
-        # 3. Tomar la última columna de la matriz (la que contiene los porcentajes)
-        col_porcentaje = df_asistencia.columns[-1]
-        
-        # 4. Construir el DataFrame con las columnas seleccionadas
-        cols_finales = [col_nombre] + cols_fechas + [col_porcentaje]
-        df_asistencia_limpio = df_asistencia[cols_finales].copy()
-        
-        # 5. Formatear los valores numéricos a porcentaje con comas/puntos (ej: 100,00%)
-        df_asistencia_limpio[col_porcentaje] = df_asistencia_limpio[col_porcentaje].apply(
-            lambda x: f"{float(x) * 100:.2f}%".replace('.', ',') if pd.notnull(x) and isinstance(x, (int, float)) and float(x) <= 1.0 
-            else (f"{float(x):.2f}%".replace('.', ',') if pd.notnull(x) and isinstance(x, (int, float)) else str(x))
+        # Diccionario con fechas formateadas a DD/MM/YYYY
+        fechas_dict = {}
+        for c in cols_fechas:
+            nombre_f = c.strftime('%d/%m/%Y') if hasattr(c, 'strftime') else str(c).split()[0]
+            fechas_dict[nombre_f] = c
+
+        # 2. Selector del tipo de vista vertical
+        modo_vista = st.radio(
+            "Seleccione el modo de visualización vertical:",
+            ["📅 Ver por Fecha (Pase de Lista Diario)", "👤 Ver por Estudiante (Historial Vertical)", "📊 Matriz Horizontal Completa"],
+            horizontal=True
         )
         
-        # 6. Limpiar los nombres de los encabezados (formato fecha DD/MM/YYYY)
-        nuevos_encabezados = []
-        for col in df_asistencia_limpio.columns:
-            if col == col_porcentaje:
-                nuevos_encabezados.append("Porcentaje de asistencia")
-            elif hasattr(col, 'strftime'):
-                nuevos_encabezados.append(col.strftime('%d/%m/%Y'))
-            else:
-                nuevos_encabezados.append(str(col))
+        st.markdown("---")
+
+        # VISTA 1: POR FECHA (Pase de Lista del día)
+        if modo_vista == "📅 Ver por Fecha (Pase de Lista Diario)":
+            fecha_sel_nombre = st.selectbox("Seleccione la Fecha:", list(fechas_dict.keys()))
+            col_fecha_real = fechas_dict[fecha_sel_nombre]
+            
+            # Filtrar DataFrame vertical
+            df_vertical_fecha = df_asistencia[[col_nombre, col_fecha_real]].copy()
+            df_vertical_fecha.columns = ["Estudiante", f"Estado de Asistencia ({fecha_sel_nombre})"]
+            df_vertical_fecha = df_vertical_fecha.dropna(subset=["Estudiante"])
+            
+            # Resumen del día
+            presentes = len(df_vertical_fecha[df_vertical_fecha.iloc[:, 1].astype(str).str.lower().isin(['presente', 'tardanza'])])
+            ausentes = len(df_vertical_fecha[df_vertical_fecha.iloc[:, 1].astype(str).str.lower() == 'ausente'])
+            
+            k1, k2 = st.columns(2)
+            k1.metric("Presentes / Tardanzas", f"{presentes} Alumnos")
+            k2.metric("Ausentes", f"{ausentes} Alumnos")
+            
+            st.dataframe(df_vertical_fecha, use_container_width=True, hide_index=True)
+
+        # VISTA 2: POR ESTUDIANTE (Historial cronológico vertical)
+        elif modo_vista == "👤 Ver por Estudiante (Historial Vertical)":
+            alumnos_lista = df_asistencia[col_nombre].dropna().unique().tolist()
+            estudiante_sel = st.selectbox("Seleccione el Estudiante:", alumnos_lista)
+            
+            row_est = df_asistencia[df_asistencia[col_nombre] == estudiante_sel]
+            
+            if not row_est.empty:
+                registros = []
+                for fecha_nom, col_f in fechas_dict.items():
+                    val = row_est.iloc[0][col_f]
+                    registros.append({"Fecha": fecha_nom, "Estado": val if pd.notnull(val) else "Sin registro"})
                 
-        df_asistencia_limpio.columns = nuevos_encabezados
+                df_vertical_est = pd.DataFrame(registros)
+                st.dataframe(df_vertical_est, use_container_width=True, hide_index=True)
 
-        # 7. Renderizar en Streamlit
-        st.dataframe(
-            df_asistencia_limpio, 
-            use_container_width=True,
-            hide_index=True
-        )
-
+        # VISTA 3: MATRIZ COMPLETA (Vista clásica)
+        else:
+            col_porcentaje = df_asistencia.columns[-1]
+            cols_finales = [col_nombre] + cols_fechas + [col_porcentaje]
+            df_asistencia_limpio = df_asistencia[cols_finales].copy()
+            
+            df_asistencia_limpio[col_porcentaje] = df_asistencia_limpio[col_porcentaje].apply(
+                lambda x: f"{float(x) * 100:.2f}%".replace('.', ',') if pd.notnull(x) and isinstance(x, (int, float)) and float(x) <= 1.0 
+                else (f"{float(x):.2f}%".replace('.', ',') if pd.notnull(x) and isinstance(x, (int, float)) else str(x))
+            )
+            
+            nuevos_encabezados = [col_nombre] + list(fechas_dict.keys()) + ["Porcentaje de asistencia"]
+            df_asistencia_limpio.columns = nuevos_encabezados
+            
+            st.dataframe(df_asistencia_limpio, use_container_width=True, hide_index=True)
+            
     # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN ---
     elif menu_seleccionado == "🔍 Consulta de Boletín / Legajo":
         st.title("🔍 Consulta Individual de Estudiante")
