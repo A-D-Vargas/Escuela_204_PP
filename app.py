@@ -269,7 +269,7 @@ else:
         # 2. Selector del tipo de vista vertical
         modo_vista = st.radio(
             "Seleccione el modo de visualización vertical:",
-            ["📅 Ver por Fecha", "👤 Ver por Estudiante ", "📊 Planilla Completa"],
+            ["📅 Ver por Fecha", "👤 Ver por Estudiante", "📊 Planilla Completa"],
             horizontal=True
         )
         
