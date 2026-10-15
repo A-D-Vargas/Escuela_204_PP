@@ -269,14 +269,14 @@ else:
         # 2. Selector del tipo de vista vertical
         modo_vista = st.radio(
             "Seleccione el modo de visualización vertical:",
-            ["📅 Ver por Fecha (Pase de Lista Diario)", "👤 Ver por Estudiante (Historial Vertical)", "📊 Matriz Horizontal Completa"],
+            ["📅 Ver por Fecha", "👤 Ver por Estudiante ", "📊 Planilla Completa"],
             horizontal=True
         )
         
         st.markdown("---")
 
         # VISTA 1: POR FECHA (Pase de Lista del día)
-        if modo_vista == "📅 Ver por Fecha (Pase de Lista Diario)":
+        if modo_vista == "📅 Ver por Fecha":
             fecha_sel_nombre = st.selectbox("Seleccione la Fecha:", list(fechas_dict.keys()))
             col_fecha_real = fechas_dict[fecha_sel_nombre]
             
@@ -296,7 +296,7 @@ else:
             st.dataframe(df_vertical_fecha, use_container_width=True, hide_index=True)
 
         # VISTA 2: POR ESTUDIANTE (Historial cronológico vertical)
-        elif modo_vista == "👤 Ver por Estudiante (Historial Vertical)":
+        elif modo_vista == "👤 Ver por Estudiante":
             alumnos_lista = df_asistencia[col_nombre].dropna().unique().tolist()
             estudiante_sel = st.selectbox("Seleccione el Estudiante:", alumnos_lista)
             
@@ -311,7 +311,7 @@ else:
                 df_vertical_est = pd.DataFrame(registros)
                 st.dataframe(df_vertical_est, use_container_width=True, hide_index=True)
 
-        # VISTA 3: MATRIZ COMPLETA (Vista clásica)
+        # VISTA 3: MATRIZ COMPLETA
         else:
             col_porcentaje = df_asistencia.columns[-1]
             cols_finales = [col_nombre] + cols_fechas + [col_porcentaje]
