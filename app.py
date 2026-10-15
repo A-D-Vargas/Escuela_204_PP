@@ -327,7 +327,7 @@ else:
             
             st.dataframe(df_asistencia_limpio, use_container_width=True, hide_index=True)
             
-    # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN (SOLO REGISTROS 2026) ---
+    # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN CON DETECCIÓN DINÁMICA DE AÑO ---
     elif menu_seleccionado == "🔍 Consulta de Boletín / Legajo":
         st.title("🔍 Consulta Individual de Estudiante e Historial")
         
@@ -335,78 +335,92 @@ else:
         with c_dni:
             dni_ingresado = st.number_input("Ingrese DNI del Alumno:", step=1, value=0)
         with c_anio:
-            # Años disponibles en el sistema
+            # Puedes agregar o listar dinámicamente los años que necesites consultar
             anio_sel = st.selectbox("Seleccione Año Lectivo:", ["2026", "2025", "2024"])
         
         if dni_ingresado > 0:
-            # Control de disponibilidad de datos según el año seleccionado
-            if anio_sel != "2026":
-                st.info(f"ℹ️ El ciclo lectivo **{anio_sel}** no posee registros digitalizados en la plataforma. Los datos se encuentran disponibles a partir del año **2026**.")
-            else:
-                alumno = df_alumnos[df_alumnos['DNI'] == dni_ingresado] if 'DNI' in df_alumnos.columns else pd.DataFrame()
+            alumno = df_alumnos[df_alumnos['DNI'] == dni_ingresado] if 'DNI' in df_alumnos.columns else pd.DataFrame()
+            
+            if not alumno.empty:
+                nombre = alumno.iloc[0]['Apellido y Nombre']
+                grado = alumno.iloc[0]['Grado y Sección Actual']
+                estado = alumno.iloc[0]['Estado de Matrícula']
                 
-                if not alumno.empty:
-                    nombre = alumno.iloc[0]['Apellido y Nombre']
-                    grado = alumno.iloc[0]['Grado y Sección Actual']
-                    estado = alumno.iloc[0]['Estado de Matrícula']
+                st.success(f"**Estudiante:** {nombre}")
+                st.info(f"**Año Consultado:** {anio_sel} | **Grado:** {grado} | **Estado:** {estado}")
+                
+                # --- A. RESUMEN DE ASISTENCIA DINÁMICO POR AÑO ---
+                st.subheader(f"📊 Resumen de Asistencia - Ciclo {anio_sel}")
+                
+                col_nombre_asist = df_asistencia.columns[1] if len(df_asistencia.columns) > 1 else df_asistencia.columns[0]
+                asist_row = df_asistencia[df_asistencia[col_nombre_asist] == nombre]
+                
+                if not asist_row.empty:
+                    # 1. Obtenemos todas las columnas válidas de fechas
+                    cols_fechas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed') and c != col_nombre_asist and "porcentaje" not in str(c).lower()]
                     
-                    st.success(f"**Estudiante:** {nombre}")
-                    st.info(f"**Año Consultado:** {anio_sel} | **Grado:** {grado} | **Estado:** {estado}")
-                    
-                    # --- A. RESUMEN DE ASISTENCIA 2026 ---
-                    st.subheader(f"📊 Resumen de Asistencia - Ciclo {anio_sel}")
-                    
-                    col_nombre_asist = df_asistencia.columns[1] if len(df_asistencia.columns) > 1 else df_asistencia.columns[0]
-                    asist_row = df_asistencia[df_asistencia[col_nombre_asist] == nombre]
-                    
-                    if not asist_row.empty:
-                        cols_fechas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed') and c != col_nombre_asist and "porcentaje" not in str(c).lower()]
-                        
-                        valores_asist = asist_row[cols_fechas].values.flatten()
-                        
-                        presentes = sum(1 for v in valores_asist if str(v).strip().lower() in ['presente', 'tardanza'])
-                        ausentes = sum(1 for v in valores_asist if str(v).strip().lower() == 'ausente')
-                        total_dias = presentes + ausentes
-                        
-                        pct_final = (presentes / total_dias * 100) if total_dias > 0 else 0.0
-                        
-                        m1, m2, m3, m4 = st.columns(4)
-                        m1.metric("Asistencias Totales", f"{presentes} días")
-                        m2.metric("Inasistencias", f"{ausentes} días", delta_color="inverse")
-                        m3.metric("Total Días Registrados", f"{total_dias} días")
-                        m4.metric("% Promedio Asistencia", f"{pct_final:.2f}%".replace('.', ','))
-                    else:
-                        st.warning("No se encontraron registros de asistencia para este estudiante.")
+                    # 2. Filtramos ÚNICAMENTE las fechas que corresponden al año seleccionado en el selectbox
+                    cols_fechas_anio = []
+                    for c in cols_fechas:
+                        str_f = c.strftime('%Y') if hasattr(c, 'strftime') else str(c)
+                        if str(anio_sel) in str_f:
+                            cols_fechas_anio.append(c)
 
-                    st.markdown("---")
-
-                    # --- B. BOLETÍN DE CALIFICACIONES 2026 ---
-                    st.subheader(f"📝 Boletín de Calificaciones - Ciclo {anio_sel}")
-                    
-                    if 'df_notas' in locals() or 'df_notas' in globals():
-                        col_alumno_notas = df_notas.columns[0]
-                        notas_row = df_notas[df_notas[col_alumno_notas] == nombre]
+                    # 3. Evaluamos si hay registros para ese año en particular
+                    if cols_fechas_anio:
+                        valores_asist = asist_row[cols_fechas_anio].values.flatten()
                         
-                        if not notas_row.empty:
-                            materia_actual = None
-                            cols_boletin = {}
+                        # Limpiar valores nulos/vacíos
+                        valores_asist = [v for v in valores_asist if pd.notnull(v) and str(v).strip() != '']
+                        
+                        if valores_asist:
+                            presentes = sum(1 for v in valores_asist if str(v).strip().lower() in ['presente', 'tardanza'])
+                            ausentes = sum(1 for v in valores_asist if str(v).strip().lower() == 'ausente')
+                            total_dias = presentes + ausentes
                             
-                            for col in df_notas.columns[1:]:
-                                if not str(col).startswith('Unnamed'):
-                                    materia_actual = col
-                                trimestre = df_notas.iloc[0][col] if pd.notnull(df_notas.iloc[0][col]) else ""
-                                
-                                val_nota = notas_row.iloc[0][col]
-                                if pd.notnull(val_nota) and str(val_nota) != str(df_notas.iloc[0][col]):
-                                    nombre_campo = f"{materia_actual} ({trimestre})" if trimestre else str(materia_actual)
-                                    cols_boletin[nombre_campo] = val_nota
-
-                            if cols_boletin:
-                                df_boletin = pd.DataFrame(list(cols_boletin.items()), columns=["Asignatura / Período", "Calificación"])
-                                st.dataframe(df_boletin, use_container_width=True, hide_index=True)
-                            else:
-                                st.info("No hay calificaciones cargadas aún para este período.")
+                            pct_final = (presentes / total_dias * 100) if total_dias > 0 else 0.0
+                            
+                            m1, m2, m3, m4 = st.columns(4)
+                            m1.metric("Asistencias Totales", f"{presentes} días")
+                            m2.metric("Inasistencias", f"{ausentes} días", delta_color="inverse")
+                            m3.metric("Total Días Registrados", f"{total_dias} días")
+                            m4.metric("% Promedio Asistencia", f"{pct_final:.2f}%".replace('.', ','))
                         else:
-                            st.warning("No se registran calificaciones en el boletín para este alumno.")
+                            st.info(f"ℹ️ No se registraron asistencias cargadas para {nombre} durante el año {anio_sel}.")
+                    else:
+                        st.info(f"ℹ️ El ciclo lectivo **{anio_sel}** no posee fechas registradas en la planilla de asistencia.")
                 else:
-                    st.warning("No se encontró ningún estudiante con el DNI ingresado.")
+                    st.warning("No se encontró al estudiante en la planilla de asistencia.")
+
+                st.markdown("---")
+
+                # --- B. BOLETÍN DE CALIFICACIONES ---
+                st.subheader(f"📝 Boletín de Calificaciones - Ciclo {anio_sel}")
+                
+                if 'df_notas' in locals() or 'df_notas' in globals():
+                    col_alumno_notas = df_notas.columns[0]
+                    notas_row = df_notas[df_notas[col_alumno_notas] == nombre]
+                    
+                    if not notas_row.empty:
+                        materia_actual = None
+                        cols_boletin = {}
+                        
+                        for col in df_notas.columns[1:]:
+                            if not str(col).startswith('Unnamed'):
+                                materia_actual = col
+                            trimestre = df_notas.iloc[0][col] if pd.notnull(df_notas.iloc[0][col]) else ""
+                            
+                            val_nota = notas_row.iloc[0][col]
+                            if pd.notnull(val_nota) and str(val_nota) != str(df_notas.iloc[0][col]):
+                                nombre_campo = f"{materia_actual} ({trimestre})" if trimestre else str(materia_actual)
+                                cols_boletin[nombre_campo] = val_nota
+
+                        if cols_boletin:
+                            df_boletin = pd.DataFrame(list(cols_boletin.items()), columns=["Asignatura / Período", "Calificación"])
+                            st.dataframe(df_boletin, use_container_width=True, hide_index=True)
+                        else:
+                            st.info(f"No hay calificaciones cargadas aún para el ciclo {anio_sel}.")
+                    else:
+                        st.warning(f"No se registran calificaciones en el boletín para el año {anio_sel}.")
+            else:
+                st.warning("No se encontró ningún estudiante con el DNI ingresado.")
