@@ -28,14 +28,13 @@ USUARIOS = {
 def load_all_data(sheet_id):
     base_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet="
     
-    # Carga de hojas específicas
     df_alumnos = pd.read_csv(f"{base_url}BD_Alumnos")
     df_asistencia = pd.read_csv(f"{base_url}Asistencia")
     df_reporte = pd.read_csv(f"{base_url}Reporte%20Gr%C3%A1fico%20Asistencia")
     df_alertas = pd.read_csv(f"{base_url}Alertas")
+    df_notas = pd.read_csv(f"{base_url}Notas")  # <--- Agrega la carga de la hoja de notas
     
-    return df_alumnos, df_asistencia, df_reporte, df_alertas
-
+    return df_alumnos, df_asistencia, df_reporte, df_alertas, df_notas
 # -------------------------------------------------------------------
 # 3. CONTROL DE SESIÓN Y AUTENTICACIÓN
 # -------------------------------------------------------------------
@@ -68,11 +67,10 @@ if not st.session_state.logged_in:
 else:
     # Cargar datos desde Google Sheets
     try:
-        df_alumnos, df_asistencia, df_reporte, df_alertas = load_all_data(SHEET_ID)
+        df_alumnos, df_asistencia, df_reporte, df_alertas, df_notas = load_all_data(SHEET_ID)
     except Exception as e:
         st.error(f"Error al conectar con la planilla de Google Sheets: {e}")
         st.stop()
-
     # Panel lateral de control de usuario
     st.sidebar.markdown(f"👤 **{st.session_state.user_name}**")
     st.sidebar.caption(f"Rol: {st.session_state.user_role}")
@@ -281,27 +279,23 @@ else:
                 st.success(f"**Estudiante:** {nombre}")
                 st.info(f"**Grado:** {grado} | **Estado:** {estado}")
                 
-                # --- A. CÁLCULO Y MÉTRICAS DE ASISTENCIA ---
+                # --- A. RESUMEN Y MÉTRICAS DE ASISTENCIA ---
                 st.subheader("📊 Resumen Anual de Asistencia")
                 
                 col_nombre_asist = df_asistencia.columns[1] if len(df_asistencia.columns) > 1 else df_asistencia.columns[0]
                 asist_row = df_asistencia[df_asistencia[col_nombre_asist] == nombre]
                 
                 if not asist_row.empty:
-                    # Identificar columnas de fechas de toma de asistencia
                     cols_fechas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed') and c != col_nombre_asist and "porcentaje" not in str(c).lower()]
                     
                     valores_asist = asist_row[cols_fechas].values.flatten()
                     
-                    # Conteo de asistencias e inasistencias
                     presentes = sum(1 for v in valores_asist if str(v).strip().lower() in ['presente', 'tardanza'])
                     ausentes = sum(1 for v in valores_asist if str(v).strip().lower() == 'ausente')
                     total_dias = presentes + ausentes
                     
-                    # Porcentaje promedio final
                     pct_final = (presentes / total_dias * 100) if total_dias > 0 else 0.0
                     
-                    # Mostrar Tarjetas / Métricas
                     m1, m2, m3, m4 = st.columns(4)
                     m1.metric("Asistencias Totales", f"{presentes} días")
                     m2.metric("Inasistencias / Ausencias", f"{ausentes} días", delta_color="inverse")
@@ -315,33 +309,33 @@ else:
                 # --- B. BOLETÍN Y NOTAS ---
                 st.subheader("📝 Boletín de Calificaciones")
                 
-                # Procesar hoja de notas
-                col_alumno_notas = df_notas.columns[0]
-                notas_row = df_notas[df_notas[col_alumno_notas] == nombre]
-                
-                if not notas_row.empty:
-                    # Estructurar la tabla de notas
-                    materia_actual = None
-                    cols_boletin = {}
+                if 'df_notas' in locals() or 'df_notas' in globals():
+                    col_alumno_notas = df_notas.columns[0]
+                    notas_row = df_notas[df_notas[col_alumno_notas] == nombre]
                     
-                    for col in df_notas.columns[1:]:
-                        if not str(col).startswith('Unnamed'):
-                            materia_actual = col
-                        trimestre = df_notas.iloc[0][col] if pd.notnull(df_notas.iloc[0][col]) else "Sin especificar"
+                    if not notas_row.empty:
+                        materia_actual = None
+                        cols_boletin = {}
                         
-                        val_nota = notas_row.iloc[0][col]
-                        if pd.notnull(val_nota) and str(val_nota) != df_notas.iloc[0][col]:
-                            cols_boletin[f"{materia_actual} ({trimestre})"] = val_nota
+                        for col in df_notas.columns[1:]:
+                            if not str(col).startswith('Unnamed'):
+                                materia_actual = col
+                            trimestre = df_notas.iloc[0][col] if pd.notnull(df_notas.iloc[0][col]) else ""
+                            
+                            val_nota = notas_row.iloc[0][col]
+                            if pd.notnull(val_nota) and str(val_nota) != str(df_notas.iloc[0][col]):
+                                nombre_campo = f"{materia_actual} ({trimestre})" if trimestre else str(materia_actual)
+                                cols_boletin[nombre_campo] = val_nota
 
-                    if cols_boletin:
-                        df_boletin = pd.DataFrame([cols_boletin]).T.reset_index()
-                        df_boletin.columns = ["Asignatura / Trimestre", "Calificación"]
-                        
-                        st.dataframe(df_boletin, use_container_width=True, hide_index=True)
+                        if cols_boletin:
+                            df_boletin = pd.DataFrame(list(cols_boletin.items()), columns=["Asignatura / Período", "Calificación"])
+                            st.dataframe(df_boletin, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("No hay calificaciones cargadas aún para este período.")
                     else:
-                        st.info("No hay calificaciones cargadas aún para este período.")
+                        st.warning("No se registran calificaciones en el boletín para este alumno.")
                 else:
-                    st.warning("No se registran calificaciones en el boletín para este alumno.")
+                    st.error("No se pudo cargar la hoja de notas desde la planilla.")
 
             else:
                 st.warning("No se encontró ningún estudiante con el DNI ingresado.")
