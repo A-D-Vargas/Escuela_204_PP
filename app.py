@@ -327,7 +327,7 @@ else:
             
             st.dataframe(df_asistencia_limpio, use_container_width=True, hide_index=True)
             
-    # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN CON DETECCIÓN DINÁMICA DE AÑO ---
+    # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN CON FILTRADO POR AÑO LECTIVO ---
     elif menu_seleccionado == "🔍 Consulta de Boletín / Legajo":
         st.title("🔍 Consulta Individual de Estudiante e Historial")
         
@@ -335,7 +335,6 @@ else:
         with c_dni:
             dni_ingresado = st.number_input("Ingrese DNI del Alumno:", step=1, value=0)
         with c_anio:
-            # Puedes agregar o listar dinámicamente los años que necesites consultar
             anio_sel = st.selectbox("Seleccione Año Lectivo:", ["2026", "2025", "2024"])
         
         if dni_ingresado > 0:
@@ -349,28 +348,24 @@ else:
                 st.success(f"**Estudiante:** {nombre}")
                 st.info(f"**Año Consultado:** {anio_sel} | **Grado:** {grado} | **Estado:** {estado}")
                 
-                # --- A. RESUMEN DE ASISTENCIA DINÁMICO POR AÑO ---
+                # --- A. RESUMEN DE ASISTENCIA DINÁMICO ---
                 st.subheader(f"📊 Resumen de Asistencia - Ciclo {anio_sel}")
                 
                 col_nombre_asist = df_asistencia.columns[1] if len(df_asistencia.columns) > 1 else df_asistencia.columns[0]
                 asist_row = df_asistencia[df_asistencia[col_nombre_asist] == nombre]
                 
                 if not asist_row.empty:
-                    # 1. Obtenemos todas las columnas válidas de fechas
                     cols_fechas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed') and c != col_nombre_asist and "porcentaje" not in str(c).lower()]
                     
-                    # 2. Filtramos ÚNICAMENTE las fechas que corresponden al año seleccionado en el selectbox
+                    # Filtrar fechas que corresponden al año seleccionado
                     cols_fechas_anio = []
                     for c in cols_fechas:
                         str_f = c.strftime('%Y') if hasattr(c, 'strftime') else str(c)
                         if str(anio_sel) in str_f:
                             cols_fechas_anio.append(c)
 
-                    # 3. Evaluamos si hay registros para ese año en particular
                     if cols_fechas_anio:
                         valores_asist = asist_row[cols_fechas_anio].values.flatten()
-                        
-                        # Limpiar valores nulos/vacíos
                         valores_asist = [v for v in valores_asist if pd.notnull(v) and str(v).strip() != '']
                         
                         if valores_asist:
@@ -394,18 +389,30 @@ else:
 
                 st.markdown("---")
 
-                # --- B. BOLETÍN DE CALIFICACIONES ---
+                # --- B. BOLETÍN DE CALIFICACIONES CON FILTRO POR AÑO LECTIVO ---
                 st.subheader(f"📝 Boletín de Calificaciones - Ciclo {anio_sel}")
                 
                 if 'df_notas' in locals() or 'df_notas' in globals():
                     col_alumno_notas = df_notas.columns[0]
-                    notas_row = df_notas[df_notas[col_alumno_notas] == nombre]
+                    
+                    # Detectar columna de Año Lectivo
+                    cols_anio_notas = [c for c in df_notas.columns if "año" in str(c).lower() or "anio" in str(c).lower()]
+                    col_anio_notas = cols_anio_notas[0] if cols_anio_notas else df_notas.columns[-1]
+                    
+                    # Filtrar exactamente por Alumno Y por Año Lectivo
+                    notas_row = df_notas[
+                        (df_notas[col_alumno_notas].astype(str).str.strip() == nombre) & 
+                        (df_notas[col_anio_notas].astype(str).str.strip().str.replace('.0', '', regex=False) == str(anio_sel))
+                    ]
                     
                     if not notas_row.empty:
                         materia_actual = None
                         cols_boletin = {}
                         
                         for col in df_notas.columns[1:]:
+                            if col == col_anio_notas:
+                                continue # Ignorar la columna de año en la lista de materias
+                                
                             if not str(col).startswith('Unnamed'):
                                 materia_actual = col
                             trimestre = df_notas.iloc[0][col] if pd.notnull(df_notas.iloc[0][col]) else ""
@@ -421,6 +428,8 @@ else:
                         else:
                             st.info(f"No hay calificaciones cargadas aún para el ciclo {anio_sel}.")
                     else:
-                        st.warning(f"No se registran calificaciones en el boletín para el año {anio_sel}.")
+                        st.info(f"ℹ️ No se registran calificaciones en el boletín para el ciclo lectivo **{anio_sel}**.")
+                else:
+                    st.error("No se pudo cargar la hoja de notas desde la planilla.")
             else:
                 st.warning("No se encontró ningún estudiante con el DNI ingresado.")
