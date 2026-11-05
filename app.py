@@ -93,9 +93,9 @@ def login_form():
 if not st.session_state.logged_in:
     login_form()
 else:
-    # Cargar datos desde Google Sheets
+    # Cargar datos desde Google Sheets (ahora son 4 elementos)
     try:
-        df_alumnos, df_asistencia, df_reporte, df_alertas, df_notas = load_all_data(SHEET_ID)
+        df_alumnos, df_asistencia, df_reporte, df_alertas = load_all_data(SHEET_ID)
     except Exception as e:
         st.error(f"Error al conectar con la planilla de Google Sheets: {e}")
         st.stop()
