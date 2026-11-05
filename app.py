@@ -22,6 +22,13 @@ USUARIOS = {
 }
 
 # -------------------------------------------------------------------
+# ID DE PLANILLAS DE NOTAS POR MATERIA
+# -------------------------------------------------------------------
+SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qlHjlo0"
+SHEET_ID_MATEMATICA = "1qojneCkGcYNDadTV1kiNajMm0pLhMnGvZWxgjrb63MY"
+SHEET_ID_EDFISICA = "1STBfC20E98khRVTZGBp15AjIeeRdK3i4-L3WBNVNcCY"
+
+# -------------------------------------------------------------------
 # 2. CARGA AUTOMÁTICA DE DATOS DESDE GOOGLE SHEETS
 # -------------------------------------------------------------------
 @st.cache_data(ttl=300)
@@ -32,9 +39,30 @@ def load_all_data(sheet_id):
     df_asistencia = pd.read_csv(f"{base_url}Asistencia")
     df_reporte = pd.read_csv(f"{base_url}Reporte%20Gr%C3%A1fico%20Asistencia")
     df_alertas = pd.read_csv(f"{base_url}Alertas")
-    df_notas = pd.read_csv(f"{base_url}Notas")  # <--- Agrega la carga de la hoja de notas
     
-    return df_alumnos, df_asistencia, df_reporte, df_alertas, df_notas
+    return df_alumnos, df_asistencia, df_reporte, df_alertas
+
+# Función auxiliar para cargar notas desde sus planillas independientes
+@st.cache_data(ttl=300)
+def load_notas_materias():
+    materias_dfs = {}
+    ids_materias = {
+        "Lengua": SHEET_ID_LENGUA,
+        "Matemática": SHEET_ID_MATEMATICA,
+        "Educación Física": SHEET_ID_EDFISICA
+    }
+    
+    base_url = "https://docs.google.com/spreadsheets/d/{}/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201"
+    
+    for materia, sid in ids_materias.items():
+        try:
+            df = pd.read_csv(base_url.format(sid))
+            materias_dfs[materia] = df
+        except Exception:
+            # Si falla la carga individual, devuelve un DataFrame vacío para evitar caídas
+            materias_dfs[materia] = pd.DataFrame()
+            
+    return materias_dfs
 # -------------------------------------------------------------------
 # 3. CONTROL DE SESIÓN Y AUTENTICACIÓN
 # -------------------------------------------------------------------
@@ -327,7 +355,7 @@ else:
             
             st.dataframe(df_asistencia_limpio, use_container_width=True, hide_index=True)
             
-    # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN CON FILTRADO POR AÑO LECTIVO ---
+    # --- MÓDULO 5: CONSULTA FAMILIAS / BOLETÍN CON PLANILLAS SEPARADAS ---
     elif menu_seleccionado == "🔍 Consulta de Boletín / Legajo":
         st.title("🔍 Consulta Individual de Estudiante e Historial")
         
@@ -357,7 +385,6 @@ else:
                 if not asist_row.empty:
                     cols_fechas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed') and c != col_nombre_asist and "porcentaje" not in str(c).lower()]
                     
-                    # Filtrar fechas que corresponden al año seleccionado
                     cols_fechas_anio = []
                     for c in cols_fechas:
                         str_f = c.strftime('%Y') if hasattr(c, 'strftime') else str(c)
@@ -389,47 +416,39 @@ else:
 
                 st.markdown("---")
 
-                # --- B. BOLETÍN DE CALIFICACIONES CON FILTRO POR AÑO LECTIVO ---
+                # --- B. BOLETÍN DE CALIFICACIONES DESDE PLANILLAS SEPARADAS ---
                 st.subheader(f"📝 Boletín de Calificaciones - Ciclo {anio_sel}")
                 
-                if 'df_notas' in locals() or 'df_notas' in globals():
-                    col_alumno_notas = df_notas.columns[0]
-                    
-                    # Detectar columna de Año Lectivo
-                    cols_anio_notas = [c for c in df_notas.columns if "año" in str(c).lower() or "anio" in str(c).lower()]
-                    col_anio_notas = cols_anio_notas[0] if cols_anio_notas else df_notas.columns[-1]
-                    
-                    # Filtrar exactamente por Alumno Y por Año Lectivo
-                    notas_row = df_notas[
-                        (df_notas[col_alumno_notas].astype(str).str.strip() == nombre) & 
-                        (df_notas[col_anio_notas].astype(str).str.strip().str.replace('.0', '', regex=False) == str(anio_sel))
-                    ]
-                    
-                    if not notas_row.empty:
-                        materia_actual = None
-                        cols_boletin = {}
+                materias_dict = load_notas_materias()
+                boletin_registros = []
+                
+                for materia, df_mat in materias_dict.items():
+                    if df_mat.empty:
+                        continue
                         
-                        for col in df_notas.columns[1:]:
-                            if col == col_anio_notas:
-                                continue # Ignorar la columna de año en la lista de materias
-                                
-                            if not str(col).startswith('Unnamed'):
-                                materia_actual = col
-                            trimestre = df_notas.iloc[0][col] if pd.notnull(df_notas.iloc[0][col]) else ""
+                    # Buscar columna correspondiente al alumno (ej: '[Vargas Alex Daniel]')
+                    col_alum_buscada = f"[{nombre}]"
+                    if col_alum_buscada in df_mat.columns:
+                        # Filtrar por año si el formulario registra marca temporal o año
+                        # Si la planilla de respuestas incluye Trimestre y Año o Marca Temporal:
+                        for idx, row in df_mat.iterrows():
+                            # Verificar año a través de la marca temporal o si coincide el ciclo
+                            marca_tiempo = str(row.get('Marca temporal', ''))
+                            trimestre = row.get('Trimestre', 'Trimestre')
                             
-                            val_nota = notas_row.iloc[0][col]
-                            if pd.notnull(val_nota) and str(val_nota) != str(df_notas.iloc[0][col]):
-                                nombre_campo = f"{materia_actual} ({trimestre})" if trimestre else str(materia_actual)
-                                cols_boletin[nombre_campo] = val_nota
-
-                        if cols_boletin:
-                            df_boletin = pd.DataFrame(list(cols_boletin.items()), columns=["Asignatura / Período", "Calificación"])
-                            st.dataframe(df_boletin, use_container_width=True, hide_index=True)
-                        else:
-                            st.info(f"No hay calificaciones cargadas aún para el ciclo {anio_sel}.")
-                    else:
-                        st.info(f"ℹ️ No se registran calificaciones en el boletín para el ciclo lectivo **{anio_sel}**.")
+                            # Si corresponde al año seleccionado (o por defecto si el año es 2026)
+                            if str(anio_sel) in marca_tiempo or anio_sel == "2026":
+                                nota_obtenida = row.get(col_alum_buscada)
+                                if pd.notnull(nota_obtenida) and str(nota_obtenida).strip() != '':
+                                    boletin_registros.append({
+                                        "Asignatura / Período": f"{materia} ({trimestre})",
+                                        "Calificación": nota_obtenida
+                                    })
+                
+                if boletin_registros:
+                    df_boletin = pd.DataFrame(boletin_registros)
+                    st.dataframe(df_boletin, use_container_width=True, hide_index=True)
                 else:
-                    st.error("No se pudo cargar la hoja de notas desde la planilla.")
+                    st.info(f"ℹ️ No se registran calificaciones en el boletín para el ciclo lectivo **{anio_sel}**.")
             else:
                 st.warning("No se encontró ningún estudiante con el DNI ingresado.")
