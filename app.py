@@ -177,19 +177,22 @@ def login_form():
                     u_sheet = str(row.get('Usuario', '')).strip()
                     p_sheet = str(row.get('Contraseña', '')).strip()
                     
-                    # COMPARACIÓN EXACTA (Respetando mayúsculas y minúsculas)
+                    # Validación respetando mayúsculas y minúsculas exactamente como en el Sheet
                     if u_sheet == str(user_input).strip() and p_sheet == str(pass_input).strip():
                         st.session_state.logged_in = True
                         st.session_state.user_role = str(row.get('Rol', '')).strip()
                         st.session_state.user_name = str(row.get('Nombre', '')).strip()
                         
-                        # Buscar dinámicamente la columna de DNI asociado sin importar espacios o variaciones
+                        # Extraer de forma segura la columna DNI_Asociado (columna 5 o por nombre flexible)
                         dni_val = "0"
                         for col_name in row.index:
-                            if "dni" in col_name.lower() and "asociado" in col_name.lower():
+                            if "dni" in col_name.lower():
                                 dni_val = str(row.get(col_name, '0'))
                                 break
-                        
+                        # Si falló por nombre, intentamos tomar la 5ta columna (índice 4)
+                        if (not dni_val or dni_val.lower() == 'nan' or dni_val == '0') and len(row) >= 5:
+                            dni_val = str(row.iloc[4])
+                            
                         st.session_state.dni_vinculado = dni_val.strip()
                         user_encontrado = True
                         break
@@ -414,7 +417,7 @@ else:
         if es_rol_familia:
             dni_raw = str(st.session_state.dni_vinculado).strip()
             
-            # Limpieza robusta de la cadena DNI_Asociado (admite comas, puntos y espacios)
+            # Limpieza robusta de la cadena DNI_Asociado
             dnis_familia = []
             if dni_raw and dni_raw != '0' and dni_raw.lower() != 'nan':
                 for parte in dni_raw.replace(';', ',').split(','):
