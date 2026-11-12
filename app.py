@@ -15,7 +15,7 @@ SHEET_ID = "1w4bE2GRG8UDYHkDEBNYpd22nDeX9D3MCVgALKDP8UJw"
 # -------------------------------------------------------------------
 # IDS DE PLANILLAS DE NOTAS POR MATERIA
 # -------------------------------------------------------------------
-SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qIhJlo0"
+SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qlHjlo0"
 SHEET_ID_MATEMATICA = "1qojneCkGcYNDadTV1kiNajMm0pLhMnGvZWxgjrb63MY"
 SHEET_ID_EDFISICA = "1STBfC20E98khRVTZGBp15AjIeeRdK3i4-L3WBNVNcCY"
 
@@ -205,22 +205,22 @@ else:
     # -------------------------------------------------------------------
     # 4. RUTEO DE MENÚ SEGÚN ROL
     # -------------------------------------------------------------------
-    if st.session_state.user_role == "Director/a":
-        opciones_menu = [
-            "📊 Dashboard & Alertas", 
-            "👥 Legajo de Alumnos", 
-            "📅 Planilla de Asistencia", 
-            "📝 Cargar Asistencia / Notas",
-            "🔍 Consulta de Boletín / Legajo"
-        ]
+    es_rol_familia_menu = "familia" in str(st.session_state.user_role).lower() or "alumnado" in str(st.session_state.user_role).lower()
+
+    if es_rol_familia_menu:
+        opciones_menu = ["🔍 Consulta de Boletín / Legajo"]
     elif st.session_state.user_role == "Docente":
         opciones_menu = [
             "📝 Cargar Asistencia / Notas", 
             "📅 Planilla de Asistencia", 
             "👥 Legajo de Alumnos"
         ]
-    else:
+    else:  # Director/a u otros roles administrativos
         opciones_menu = [
+            "📊 Dashboard & Alertas", 
+            "👥 Legajo de Alumnos", 
+            "📅 Planilla de Asistencia", 
+            "📝 Cargar Asistencia / Notas",
             "🔍 Consulta de Boletín / Legajo"
         ]
 
@@ -390,14 +390,16 @@ else:
     elif menu_seleccionado == "🔍 Consulta de Boletín / Legajo":
         st.title("🔍 Consulta Individual de Estudiante e Historial")
         
-        if st.session_state.user_role == "Alumnado y Familias":
+        es_rol_familia = "familia" in str(st.session_state.user_role).lower() or "alumnado" in str(st.session_state.user_role).lower()
+        
+        if es_rol_familia:
             dni_raw = str(st.session_state.dni_vinculado)
             dnis_familia = [d.strip() for d in dni_raw.replace(';', ',').split(',') if d.strip().isdigit()]
             dnis_familia = [int(d) for d in dnis_familia]
             
             anio_sel = st.selectbox("Seleccione Año Lectivo:", ["2026", "2025", "2024"])
             
-            if len(dnis_familia) > 1:
+            if dnis_familia and dnis_familia[0] != 0:
                 nombres_hijos = []
                 mapa_dnis = {}
                 for d in dnis_familia:
@@ -407,7 +409,7 @@ else:
                         nombres_hijos.append(nom)
                         mapa_dnis[nom] = d
                 
-                if nombres_hijos:
+                if len(nombres_hijos) > 1:
                     st.info(f"🔒 Vista familiar: Se detectaron {len(nombres_hijos)} alumnos asociados a su cuenta.")
                     tabs_hijos = st.tabs([f"🎓 {nombre}" for nombre in nombres_hijos])
                     
@@ -416,13 +418,14 @@ else:
                             hijo_sel_nombre = nombres_hijos[idx]
                             dni_ingresado = mapa_dnis[hijo_sel_nombre]
                             renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
+                elif len(nombres_hijos) == 1:
+                    hijo_sel_nombre = nombres_hijos[0]
+                    dni_ingresado = mapa_dnis[hijo_sel_nombre]
+                    renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
                 else:
-                    st.warning("No hay DNIs válidos configurados para esta cuenta familiar.")
-            elif len(dnis_familia) == 1:
-                dni_ingresado = dnis_familia[0]
-                renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
+                    st.warning("⚠️ No se encontraron alumnos en la base de datos con los DNI asociados a su cuenta.")
             else:
-                st.warning("No se encontró ningún DNI asociado a esta cuenta familiar.")
+                st.error("⚠️ Su cuenta de familia no tiene ningún DNI de alumno vinculado en la planilla de Google Sheets (columna DNI_Asociado).")
         else:
             c_dni, c_anio = st.columns([2, 1])
             with c_dni:
