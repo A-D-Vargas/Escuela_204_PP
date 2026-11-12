@@ -15,7 +15,7 @@ SHEET_ID = "1w4bE2GRG8UDYHkDEBNYpd22nDeX9D3MCVgALKDP8UJw"
 # -------------------------------------------------------------------
 # IDS DE PLANILLAS DE NOTAS POR MATERIA
 # -------------------------------------------------------------------
-SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qlHjlo0"
+SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qIhJlo0"
 SHEET_ID_MATEMATICA = "1qojneCkGcYNDadTV1kiNajMm0pLhMnGvZWxgjrb63MY"
 SHEET_ID_EDFISICA = "1STBfC20E98khRVTZGBp15AjIeeRdK3i4-L3WBNVNcCY"
 
@@ -185,7 +185,7 @@ if not st.session_state.logged_in:
     login_form()
 else:
     try:
-        df_alumnos, df_asistencia, df_reporte, df_alertas, df_usuarios = load_all_data(SHEET_ID)
+        df_alumnos, df_asistencia, df_reporte, df_alertas, _ = load_all_data(SHEET_ID)
     except Exception as e:
         st.error(f"Error al conectar con la planilla de Google Sheets: {e}")
         st.stop()
@@ -211,8 +211,7 @@ else:
             "👥 Legajo de Alumnos", 
             "📅 Planilla de Asistencia", 
             "📝 Cargar Asistencia / Notas",
-            "🔍 Consulta de Boletín / Legajo",
-            "⚙️ Gestor de Usuarios y Permisos"
+            "🔍 Consulta de Boletín / Legajo"
         ]
     elif st.session_state.user_role == "Docente":
         opciones_menu = [
@@ -433,25 +432,3 @@ else:
             
             if dni_ingresado > 0:
                 renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
-
-    elif menu_seleccionado == "⚙️ Gestor de Usuarios y Permisos":
-        st.title("⚙️ Panel de Gestión de Usuarios y Accesos")
-        st.write("Administre las cuentas del sistema y relacione las familias con sus respectivos alumnos.")
-        
-        if not df_usuarios.empty:
-            st.subheader("📋 Usuarios Registrados Actualmente")
-            st.dataframe(df_usuarios, use_container_width=True, hide_index=True)
-        else:
-            st.warning("No se encontró la pestaña 'Usuarios' o está vacía en Google Sheets.")
-            
-        st.markdown("---")
-        st.subheader("➕ Instrucciones para Agregar o Modificar Usuarios")
-        st.info(
-            "Para agregar un nuevo usuario, tutor o docente, "
-            "debe ir directamente a la pestaña **Usuarios** de su Google Sheet principal y agregar una nueva fila con los siguientes datos:\n\n"
-            "1. **Usuario**: Nombre de usuario para el login.\n"
-            "2. **Contraseña**: Clave de acceso.\n"
-            "3. **Rol**: Puede ser `Director/a`, `Docente` o `Alumnado y Familias`.\n"
-            "4. **Nombre**: Nombre institucional visible.\n"
-            "5. **DNI_Asociado**: Si el rol es `Alumnado y Familias`, coloque el DNI exacto del alumno (si tiene varios hermanos, sepárelos con comas, ej: `44652356, 45123456`). Para directivos o docentes, coloque `0`."
-        )
