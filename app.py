@@ -27,13 +27,15 @@ def load_all_data(sheet_id):
     base_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet="
     
     df_alumnos = pd.read_csv(f"{base_url}BD_Alumnos", dtype=str)
+    # Limpiar espacios en los nombres de columnas de alumnos
+    df_alumnos.columns = df_alumnos.columns.str.strip()
+    
     df_asistencia = pd.read_csv(f"{base_url}Asistencia")
     df_reporte = pd.read_csv(f"{base_url}Reporte%20Gr%C3%A1fico%20Asistencia")
     df_alertas = pd.read_csv(f"{base_url}Alertas")
     
     try:
         df_usuarios = pd.read_csv(f"{base_url}Usuarios", dtype=str)
-        # Limpiar espacios en blanco en los nombres de las columnas si los hubiera
         df_usuarios.columns = df_usuarios.columns.str.strip()
     except Exception:
         df_usuarios = pd.DataFrame(columns=["Usuario", "Contraseña", "Rol", "Nombre", "DNI_Asociado"])
@@ -55,6 +57,7 @@ def load_notas_materias():
     for materia, sid in ids_materias.items():
         try:
             df = pd.read_csv(base_url.format(sid), dtype=str)
+            df.columns = df.columns.str.strip()
             materias_dfs[materia] = df
         except Exception:
             materias_dfs[materia] = pd.DataFrame()
@@ -73,7 +76,7 @@ except Exception:
 def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia):
     dni_limpio = str(dni_ingresado).replace('.0', '').strip()
     
-    # Búsqueda flexible de DNI en BD_Alumnos
+    # Normalizar columna DNI en BD_Alumnos para asegurar coincidencia exacta
     df_alumnos['DNI_Limpio'] = df_alumnos['DNI'].astype(str).str.replace('.0', '', regex=False).str.strip()
     alumno = df_alumnos[df_alumnos['DNI_Limpio'] == dni_limpio] if 'DNI' in df_alumnos.columns else pd.DataFrame()
     
@@ -326,7 +329,7 @@ else:
             
     elif menu_seleccionado == "👥 Legajo de Alumnos":
         st.title("👥 Base de Datos de Alumnos")
-        columnas_padron = [c for c in df_alumnos.columns if not str(c).startswith('Unnamed')]
+        columnas_padron = [c for c in df_alumnos.columns if not str(c).startswith('Unnamed') and c != 'DNI_Limpio']
         df_alumnos_limpio = df_alumnos[columnas_padron].copy()
         
         grados = ["Todos"] + list(df_alumnos_limpio['Grado y Sección Actual'].dropna().unique()) if 'Grado y Sección Actual' in df_alumnos_limpio.columns else ["Todos"]
@@ -403,7 +406,7 @@ else:
         if es_rol_familia:
             dni_raw = str(st.session_state.dni_vinculado).strip()
             
-            # Limpieza robusta de la cadena DNI_Asociado
+            # Separar por comas y limpiar cada DNI asegurando formato entero/texto plano
             dnis_familia = []
             if dni_raw and dni_raw != '0' and dni_raw.lower() != 'nan':
                 for parte in dni_raw.replace(';', ',').split(','):
@@ -416,8 +419,12 @@ else:
             if dnis_familia:
                 nombres_hijos = []
                 mapa_dnis = {}
+                
+                # Crear columna normalizada de DNI para la búsqueda
+                df_alumnos['DNI_Limpio'] = df_alumnos['DNI'].astype(str).str.replace('.0', '', regex=False).str.strip()
+                
                 for d in dnis_familia:
-                    res_al = df_alumnos[df_alumnos['DNI'].astype(str).str.replace('.0', '', regex=False).str.strip() == str(d)]
+                    res_al = df_alumnos[df_alumnos['DNI_Limpio'] == str(d)]
                     if not res_al.empty:
                         nom = res_al.iloc[0]['Apellido y Nombre']
                         nombres_hijos.append(nom)
@@ -437,8 +444,7 @@ else:
                     dni_ingresado = mapa_dnis[hijo_sel_nombre]
                     renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
                 else:
-                    # Mensaje de depuración detallado para ver exactamente qué falló
-                    st.warning(f"⚠️ DNI vinculado leído: `{dnis_familia}`. No se encontró coincidencia exacta en la columna 'DNI' de la hoja 'BD_Alumnos'. Verifique que los DNI en ambas pestañas sean idénticos.")
+                    st.warning(f"⚠️ DNI/s asociado/s en su cuenta: `{dnis_familia}`. No se encontró coincidencia en la hoja 'BD_Alumnos'. Verifique que los DNI escritos en la pestaña 'Usuarios' coincidan exactamente con los de la planilla de alumnos.")
             else:
                 st.error(f"⚠️ Su cuenta de familia tiene un valor inválido en DNI_Asociado: `{dni_raw}`.")
         else:
