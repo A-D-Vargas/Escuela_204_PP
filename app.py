@@ -26,13 +26,15 @@ SHEET_ID_EDFISICA = "1STBfC20E98khRVTZGBp15AjIeeRdK3i4-L3WBNVNcCY"
 def load_all_data(sheet_id):
     base_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet="
     
-    df_alumnos = pd.read_csv(f"{base_url}BD_Alumnos", dtype=str) # Forzar texto para evitar problemas con DNIs
+    df_alumnos = pd.read_csv(f"{base_url}BD_Alumnos", dtype=str)
     df_asistencia = pd.read_csv(f"{base_url}Asistencia")
     df_reporte = pd.read_csv(f"{base_url}Reporte%20Gr%C3%A1fico%20Asistencia")
     df_alertas = pd.read_csv(f"{base_url}Alertas")
     
     try:
-        df_usuarios = pd.read_csv(f"{base_url}Usuarios", dtype=str) # Forzar texto en usuarios
+        df_usuarios = pd.read_csv(f"{base_url}Usuarios", dtype=str)
+        # Limpiar espacios en blanco en los nombres de las columnas si los hubiera
+        df_usuarios.columns = df_usuarios.columns.str.strip()
     except Exception:
         df_usuarios = pd.DataFrame(columns=["Usuario", "Contraseña", "Rol", "Nombre", "DNI_Asociado"])
         
@@ -70,12 +72,15 @@ except Exception:
 # -------------------------------------------------------------------
 def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia):
     dni_limpio = str(dni_ingresado).replace('.0', '').strip()
-    alumno = df_alumnos[df_alumnos['DNI'].astype(str).str.replace('.0', '', regex=False).str.strip() == dni_limpio] if 'DNI' in df_alumnos.columns else pd.DataFrame()
+    
+    # Búsqueda flexible de DNI en BD_Alumnos
+    df_alumnos['DNI_Limpio'] = df_alumnos['DNI'].astype(str).str.replace('.0', '', regex=False).str.strip()
+    alumno = df_alumnos[df_alumnos['DNI_Limpio'] == dni_limpio] if 'DNI' in df_alumnos.columns else pd.DataFrame()
     
     if not alumno.empty:
         nombre = alumno.iloc[0]['Apellido y Nombre']
-        grado = alumno.iloc[0]['Grado y Sección Actual']
-        estado = alumno.iloc[0]['Estado de Matrícula']
+        grado = alumno.iloc[0]['Grado y Sección Actual'] if 'Grado y Sección Actual' in alumno.columns else "Sin datos"
+        estado = alumno.iloc[0]['Estado de Matrícula'] if 'Estado de Matrícula' in alumno.columns else "Sin datos"
         
         st.success(f"**Estudiante:** {nombre}")
         st.info(f"**Año Consultado:** {anio_sel} | **Grado:** {grado} | **Estado:** {estado}")
@@ -168,10 +173,12 @@ def login_form():
             user_encontrado = False
             if not df_usuarios_init.empty:
                 for _, row in df_usuarios_init.iterrows():
-                    if str(row.get('Usuario')).strip() == str(user_input).strip() and str(row.get('Contraseña')).strip() == str(pass_input).strip():
+                    u_sheet = str(row.get('Usuario', '')).strip()
+                    p_sheet = str(row.get('Contraseña', '')).strip()
+                    if u_sheet.lower() == str(user_input).strip().lower() and p_sheet == str(pass_input).strip():
                         st.session_state.logged_in = True
-                        st.session_state.user_role = str(row.get('Rol')).strip()
-                        st.session_state.user_name = str(row.get('Nombre')).strip()
+                        st.session_state.user_role = str(row.get('Rol', '')).strip()
+                        st.session_state.user_name = str(row.get('Nombre', '')).strip()
                         st.session_state.dni_vinculado = str(row.get('DNI_Asociado', '0')).strip()
                         user_encontrado = True
                         break
@@ -210,7 +217,7 @@ else:
 
     if es_rol_familia_menu:
         opciones_menu = ["🔍 Consulta de Boletín / Legajo"]
-    elif st.session_state.user_role == "Docente":
+    elif st.session_state.user_role.lower() == "docente":
         opciones_menu = [
             "📝 Cargar Asistencia / Notas", 
             "📅 Planilla de Asistencia", 
@@ -396,7 +403,7 @@ else:
         if es_rol_familia:
             dni_raw = str(st.session_state.dni_vinculado).strip()
             
-            # Limpieza exhaustiva de la celda DNI_Asociado (admite comas, puntos y espacios)
+            # Limpieza robusta de la cadena DNI_Asociado
             dnis_familia = []
             if dni_raw and dni_raw != '0' and dni_raw.lower() != 'nan':
                 for parte in dni_raw.replace(';', ',').split(','):
@@ -430,9 +437,10 @@ else:
                     dni_ingresado = mapa_dnis[hijo_sel_nombre]
                     renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
                 else:
-                    st.warning(f"⚠️ No se encontró al alumno con DNI [{dnis_familia}] en la base de datos 'BD_Alumnos'. Verifique que el DNI cargado en la pestaña 'Usuarios' coincida exactamente con el de la planilla de alumnos.")
+                    # Mensaje de depuración detallado para ver exactamente qué falló
+                    st.warning(f"⚠️ DNI vinculado leído: `{dnis_familia}`. No se encontró coincidencia exacta en la columna 'DNI' de la hoja 'BD_Alumnos'. Verifique que los DNI en ambas pestañas sean idénticos.")
             else:
-                st.error("⚠️ Su cuenta de familia no tiene ningún DNI de alumno válido vinculado en la planilla de Google Sheets (columna DNI_Asociado).")
+                st.error(f"⚠️ Su cuenta de familia tiene un valor inválido en DNI_Asociado: `{dni_raw}`.")
         else:
             # Vista libre exclusiva para Director/a o Docente
             c_dni, c_anio = st.columns([2, 1])
