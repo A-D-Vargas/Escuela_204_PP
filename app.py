@@ -177,13 +177,11 @@ def login_form():
                     u_sheet = str(row.get('Usuario', '')).strip()
                     p_sheet = str(row.get('Contraseña', '')).strip()
                     
-                    # Respeta estrictamente mayúsculas y minúsculas del usuario y contraseña
                     if u_sheet == str(user_input).strip() and p_sheet == str(pass_input).strip():
                         st.session_state.logged_in = True
                         st.session_state.user_role = str(row.get('Rol', '')).strip()
                         st.session_state.user_name = str(row.get('Nombre', '')).strip()
                         
-                        # Captura segura de la celda DNI_Asociado por nombre exacto, parcial o índice
                         dni_val = "0"
                         for col_name in row.index:
                             if "dni" in col_name.lower():
@@ -420,10 +418,8 @@ else:
         if es_rol_familia:
             dni_raw = str(st.session_state.dni_vinculado).strip()
             
-            # Limpieza robusta que soporta comas (,) y punto y coma (;)
             dnis_familia = []
             if dni_raw and dni_raw != '0' and dni_raw.lower() != 'nan':
-                # Reemplazamos punto y coma por coma y separamos
                 for parte in dni_raw.replace(';', ',').split(','):
                     parte_limpia = parte.replace('.0', '').strip()
                     if parte_limpia:
@@ -444,4 +440,29 @@ else:
                         nombres_hijos.append(nom)
                         mapa_dnis[nom] = d
                 
-                if len(nombres_hijos
+                if len(nombres_hijos) > 1:
+                    st.info(f"🔒 Vista familiar: Se detectaron {len(nombres_hijos)} alumnos asociados a su cuenta.")
+                    tabs_hijos = st.tabs([f"🎓 {nombre}" for nombre in nombres_hijos])
+                    
+                    for idx, tab in enumerate(tabs_hijos):
+                        with tab:
+                            hijo_sel_nombre = nombres_hijos[idx]
+                            dni_ingresado = mapa_dnis[hijo_sel_nombre]
+                            renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
+                elif len(nombres_hijos) == 1:
+                    hijo_sel_nombre = nombres_hijos[0]
+                    dni_ingresado = mapa_dnis[hijo_sel_nombre]
+                    renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
+                else:
+                    st.warning(f"⚠️ DNI/s asociado/s en su cuenta: `{dnis_familia}`. No se encontró coincidencia en la hoja 'BD_Alumnos'. Verifique que los DNI escritos en la pestaña 'Usuarios' coincidan exactamente con los de la planilla de alumnos.")
+            else:
+                st.error(f"⚠️ Su cuenta de familia tiene un valor inválido o vacío en DNI_Asociado: `{dni_raw}`.")
+        else:
+            c_dni, c_anio = st.columns([2, 1])
+            with c_dni:
+                dni_ingresado = st.number_input("Ingrese DNI del Alumno:", step=1, value=0)
+            with c_anio:
+                anio_sel = st.selectbox("Seleccione Año Lectivo:", ["2026", "2025", "2024"])
+            
+            if dni_ingresado > 0:
+                renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
