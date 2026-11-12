@@ -159,7 +159,7 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_role = None
     st.session_state.user_name = None
-    st.session_state.dni_vinculado = None
+    st.session_state.dnis_vinculados = []
 
 def login_form():
     st.title("🏫 Sistema de Gestión Escolar - Acceso")
@@ -172,33 +172,42 @@ def login_form():
         
         if st.button("Ingresar", use_container_width=True):
             user_encontrado = False
+            dnis_acumulados = []
+            rol_encontrado = None
+            nombre_encontrado = None
+            
             if not df_usuarios_init.empty:
                 for _, row in df_usuarios_init.iterrows():
                     u_sheet = str(row.get('Usuario', '')).strip()
                     p_sheet = str(row.get('Contraseña', '')).strip()
                     
                     if u_sheet == str(user_input).strip() and p_sheet == str(pass_input).strip():
-                        st.session_state.logged_in = True
-                        st.session_state.user_role = str(row.get('Rol', '')).strip()
-                        st.session_state.user_name = str(row.get('Nombre', '')).strip()
+                        user_encontrado = True
+                        rol_encontrado = str(row.get('Rol', '')).strip()
+                        nombre_encontrado = str(row.get('Nombre', '')).strip()
                         
-                        dni_val = "0"
+                        # Extraer DNI asociado de esta fila
                         for col_name in row.index:
                             if "dni" in col_name.lower():
                                 val_celda = row.get(col_name)
                                 if pd.notnull(val_celda):
-                                    dni_val = str(val_celda)
-                                    break
-                        if (not dni_val or dni_val.lower() == 'nan' or dni_val == '0') and len(row) >= 5:
+                                    d = str(val_celda).replace('.0', '').strip()
+                                    if d and d != '0' and d.lower() != 'nan':
+                                        dnis_acumulados.append(d)
+                                break
+                        # Fallback por índice si la columna no se llamaba DNI
+                        if not dnis_acumulados and len(row) >= 5:
                             val_celda = row.iloc[4]
                             if pd.notnull(val_celda):
-                                dni_val = str(val_celda)
-                                
-                        st.session_state.dni_vinculado = dni_val.strip()
-                        user_encontrado = True
-                        break
+                                d = str(val_celda).replace('.0', '').strip()
+                                if d and d != '0' and d.lower() != 'nan':
+                                    dnis_acumulados.append(d)
             
             if user_encontrado:
+                st.session_state.logged_in = True
+                st.session_state.user_role = rol_encontrado
+                st.session_state.user_name = nombre_encontrado
+                st.session_state.dnis_vinculados = list(set(dnis_acumulados)) # Eliminar duplicados si los hubiera
                 st.success(f"Bienvenido/a, {st.session_state.user_name}")
                 st.rerun()
             else:
@@ -220,7 +229,7 @@ else:
         st.session_state.logged_in = False
         st.session_state.user_role = None
         st.session_state.user_name = None
-        st.session_state.dni_vinculado = None
+        st.session_state.dnis_vinculados = []
         st.rerun()
         
     st.sidebar.markdown("---")
@@ -416,14 +425,7 @@ else:
         es_rol_familia = "familia" in str(st.session_state.user_role).lower() or "alumnado" in str(st.session_state.user_role).lower()
         
         if es_rol_familia:
-            dni_raw = str(st.session_state.dni_vinculado).strip()
-            
-            dnis_familia = []
-            if dni_raw and dni_raw != '0' and dni_raw.lower() != 'nan':
-                for parte in dni_raw.replace(';', ',').split(','):
-                    parte_limpia = parte.replace('.0', '').strip()
-                    if parte_limpia:
-                        dnis_familia.append(parte_limpia)
+            dnis_familia = st.session_state.get('dnis_vinculados', [])
             
             anio_sel = st.selectbox("Seleccione Año Lectivo:", ["2026", "2025", "2024"])
             
@@ -456,7 +458,7 @@ else:
                 else:
                     st.warning(f"⚠️ DNI/s asociado/s en su cuenta: `{dnis_familia}`. No se encontró coincidencia en la hoja 'BD_Alumnos'. Verifique que los DNI escritos en la pestaña 'Usuarios' coincidan exactamente con los de la planilla de alumnos.")
             else:
-                st.error(f"⚠️ Su cuenta de familia tiene un valor inválido o vacío en DNI_Asociado: `{dni_raw}`.")
+                st.error("⚠️ Su cuenta de familia no tiene ningún DNI válido vinculado en las filas de la planilla de Google Sheets.")
         else:
             c_dni, c_anio = st.columns([2, 1])
             with c_dni:
