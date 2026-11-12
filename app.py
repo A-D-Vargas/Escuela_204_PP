@@ -26,13 +26,13 @@ SHEET_ID_EDFISICA = "1STBfC20E98khRVTZGBp15AjIeeRdK3i4-L3WBNVNcCY"
 def load_all_data(sheet_id):
     base_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet="
     
-    df_alumnos = pd.read_csv(f"{base_url}BD_Alumnos")
+    df_alumnos = pd.read_csv(f"{base_url}BD_Alumnos", dtype=str) # Forzar texto para evitar problemas con DNIs
     df_asistencia = pd.read_csv(f"{base_url}Asistencia")
     df_reporte = pd.read_csv(f"{base_url}Reporte%20Gr%C3%A1fico%20Asistencia")
     df_alertas = pd.read_csv(f"{base_url}Alertas")
     
     try:
-        df_usuarios = pd.read_csv(f"{base_url}Usuarios")
+        df_usuarios = pd.read_csv(f"{base_url}Usuarios", dtype=str) # Forzar texto en usuarios
     except Exception:
         df_usuarios = pd.DataFrame(columns=["Usuario", "Contraseña", "Rol", "Nombre", "DNI_Asociado"])
         
@@ -52,7 +52,7 @@ def load_notas_materias():
     
     for materia, sid in ids_materias.items():
         try:
-            df = pd.read_csv(base_url.format(sid))
+            df = pd.read_csv(base_url.format(sid), dtype=str)
             materias_dfs[materia] = df
         except Exception:
             materias_dfs[materia] = pd.DataFrame()
@@ -69,8 +69,8 @@ except Exception:
 # 2. FUNCIÓN AUXILIAR DE RENDERIZADO DE ESTUDIANTE (BOLETÍN Y ASISTENCIA)
 # -------------------------------------------------------------------
 def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia):
-    # Asegurarnos de que el DNI se compare limpiamente como entero o string numérico
-    alumno = df_alumnos[df_alumnos['DNI'].astype(str).str.replace('.0', '', regex=False).str.strip() == str(dni_ingresado).strip()] if 'DNI' in df_alumnos.columns else pd.DataFrame()
+    dni_limpio = str(dni_ingresado).replace('.0', '').strip()
+    alumno = df_alumnos[df_alumnos['DNI'].astype(str).str.replace('.0', '', regex=False).str.strip() == dni_limpio] if 'DNI' in df_alumnos.columns else pd.DataFrame()
     
     if not alumno.empty:
         nombre = alumno.iloc[0]['Apellido y Nombre']
@@ -83,7 +83,7 @@ def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asist
         # --- A. RESUMEN DE ASISTENCIA DINÁMICO ---
         st.subheader(f"📊 Resumen de Asistencia - Ciclo {anio_sel}")
         col_nombre_asist = df_asistencia.columns[1] if len(df_asistencia.columns) > 1 else df_asistencia.columns[0]
-        asist_row = df_asistencia[df_asistencia[col_nombre_asist] == nombre]
+        asist_row = df_asistencia[df_asistencia[col_nombre_asist].astype(str).str.strip() == str(nombre).strip()]
         
         if not asist_row.empty:
             cols_fechas = [c for c in df_asistencia.columns if not str(c).startswith('Unnamed') and c != col_nombre_asist and "porcentaje" not in str(c).lower()]
@@ -126,7 +126,7 @@ def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asist
                 continue
             if 'Alumno' in df_mat.columns and 'Año' in df_mat.columns and 'Nota' in df_mat.columns:
                 filtro_nota = df_mat[
-                    (df_mat['Alumno'].astype(str).str.strip() == nombre) & 
+                    (df_mat['Alumno'].astype(str).str.strip() == str(nombre).strip()) & 
                     (df_mat['Año'].astype(str).str.strip().str.replace('.0', '', regex=False) == str(anio_sel))
                 ]
                 for _, row in filtro_nota.iterrows():
@@ -172,7 +172,7 @@ def login_form():
                         st.session_state.logged_in = True
                         st.session_state.user_role = str(row.get('Rol')).strip()
                         st.session_state.user_name = str(row.get('Nombre')).strip()
-                        st.session_state.dni_vinculado = str(row.get('DNI_Asociado', '0'))
+                        st.session_state.dni_vinculado = str(row.get('DNI_Asociado', '0')).strip()
                         user_encontrado = True
                         break
             
@@ -396,13 +396,13 @@ else:
         if es_rol_familia:
             dni_raw = str(st.session_state.dni_vinculado).strip()
             
-            # Limpieza robusta soportando comas y espacios múltiples
+            # Limpieza exhaustiva de la celda DNI_Asociado (admite comas, puntos y espacios)
             dnis_familia = []
             if dni_raw and dni_raw != '0' and dni_raw.lower() != 'nan':
                 for parte in dni_raw.replace(';', ',').split(','):
                     parte_limpia = parte.replace('.0', '').strip()
-                    if parte_limpia.isdigit():
-                        dnis_familia.append(int(parte_limpia))
+                    if parte_limpia:
+                        dnis_familia.append(parte_limpia)
             
             anio_sel = st.selectbox("Seleccione Año Lectivo:", ["2026", "2025", "2024"])
             
@@ -410,7 +410,6 @@ else:
                 nombres_hijos = []
                 mapa_dnis = {}
                 for d in dnis_familia:
-                    # Búsqueda asegurando formato numérico/string limpio
                     res_al = df_alumnos[df_alumnos['DNI'].astype(str).str.replace('.0', '', regex=False).str.strip() == str(d)]
                     if not res_al.empty:
                         nom = res_al.iloc[0]['Apellido y Nombre']
@@ -431,7 +430,7 @@ else:
                     dni_ingresado = mapa_dnis[hijo_sel_nombre]
                     renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
                 else:
-                    st.warning("⚠️ No se encontraron alumnos en la base de datos que coincidan con los DNI asociados a su cuenta.")
+                    st.warning(f"⚠️ No se encontró al alumno con DNI [{dnis_familia}] en la base de datos 'BD_Alumnos'. Verifique que el DNI cargado en la pestaña 'Usuarios' coincida exactamente con el de la planilla de alumnos.")
             else:
                 st.error("⚠️ Su cuenta de familia no tiene ningún DNI de alumno válido vinculado en la planilla de Google Sheets (columna DNI_Asociado).")
         else:
