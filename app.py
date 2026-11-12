@@ -15,7 +15,7 @@ SHEET_ID = "1w4bE2GRG8UDYHkDEBNYpd22nDeX9D3MCVgALKDP8UJw"
 # -------------------------------------------------------------------
 # IDS DE PLANILLAS DE NOTAS POR MATERIA
 # -------------------------------------------------------------------
-SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qIhJlo0"
+SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qlHjlo0"
 SHEET_ID_MATEMATICA = "1qojneCkGcYNDadTV1kiNajMm0pLhMnGvZWxgjrb63MY"
 SHEET_ID_EDFISICA = "1STBfC20E98khRVTZGBp15AjIeeRdK3i4-L3WBNVNcCY"
 
@@ -56,6 +56,7 @@ def load_notas_materias():
     for materia, sid in ids_materias.items():
         try:
             df = pd.read_csv(base_url.format(sid), dtype=str)
+            # Limpiar espacios en los nombres de las columnas de notas
             df.columns = df.columns.str.strip()
             materias_dfs[materia] = df
         except Exception:
@@ -130,19 +131,28 @@ def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asist
         for materia, df_mat in materias_dict.items():
             if df_mat.empty:
                 continue
-            if 'Alumno' in df_mat.columns and 'Año' in df_mat.columns and 'Nota' in df_mat.columns:
-                filtro_nota = df_mat[
-                    (df_mat['Alumno'].astype(str).str.strip() == str(nombre).strip()) & 
-                    (df_mat['Año'].astype(str).str.strip().str.replace('.0', '', regex=False) == str(anio_sel))
-                ]
-                for _, row in filtro_nota.iterrows():
-                    trimestre = row.get('Trimestre', 'Trimestre')
-                    calificacion = row.get('Nota', '')
-                    if pd.notnull(calificacion) and str(calificacion).strip() != '':
-                        boletin_registros.append({
-                            "Asignatura / Período": f"{materia} ({trimestre})",
-                            "Calificación": calificacion
-                        })
+            
+            # Identificar nombres de columnas de forma flexible (ignorando mayúsculas/minúsculas y espacios)
+            cols_map = {c.lower().strip(): c for c in df_mat.columns}
+            col_alu = cols_map.get('alumno', None)
+            col_anio = cols_map.get('año', cols_map.get('anio', None))
+            col_nota = cols_map.get('nota', None)
+            col_trim = cols_map.get('trimestre', None)
+            
+            if col_alu and col_nota:
+                # Filtrar de forma robusta por nombre de alumno y año
+                for _, row in df_mat.iterrows():
+                    val_alu = str(row.get(col_alu, '')).strip()
+                    val_anio = str(row.get(col_anio, '')).replace('.0', '').strip() if col_anio else str(anio_sel)
+                    
+                    if val_alu.lower() == str(nombre).strip().lower() and (val_anio == str(anio_sel) or val_anio == '' or val_anio == 'nan'):
+                        trimestre = str(row.get(col_trim, 'Trimestre')).strip() if col_trim else 'Trimestre'
+                        calificacion = row.get(col_nota, '')
+                        if pd.notnull(calificacion) and str(calificacion).strip() != '':
+                            boletin_registros.append({
+                                "Asignatura / Período": f"{materia} ({trimestre})",
+                                "Calificación": calificacion
+                            })
         
         if boletin_registros:
             df_boletin = pd.DataFrame(boletin_registros)
@@ -186,7 +196,6 @@ def login_form():
                         rol_encontrado = str(row.get('Rol', '')).strip()
                         nombre_encontrado = str(row.get('Nombre', '')).strip()
                         
-                        # Extraer DNI asociado de esta fila
                         for col_name in row.index:
                             if "dni" in col_name.lower():
                                 val_celda = row.get(col_name)
@@ -195,7 +204,6 @@ def login_form():
                                     if d and d != '0' and d.lower() != 'nan':
                                         dnis_acumulados.append(d)
                                 break
-                        # Fallback por índice si la columna no se llamaba DNI
                         if not dnis_acumulados and len(row) >= 5:
                             val_celda = row.iloc[4]
                             if pd.notnull(val_celda):
@@ -207,7 +215,7 @@ def login_form():
                 st.session_state.logged_in = True
                 st.session_state.user_role = rol_encontrado
                 st.session_state.user_name = nombre_encontrado
-                st.session_state.dnis_vinculados = list(set(dnis_acumulados)) # Eliminar duplicados si los hubiera
+                st.session_state.dnis_vinculados = list(set(dnis_acumulados))
                 st.success(f"Bienvenido/a, {st.session_state.user_name}")
                 st.rerun()
             else:
@@ -454,11 +462,11 @@ else:
                 elif len(nombres_hijos) == 1:
                     hijo_sel_nombre = nombres_hijos[0]
                     dni_ingresado = mapa_dnis[hijo_sel_nombre]
-                    renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
+                    renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos,_asistencia=df_asistencia)
                 else:
                     st.warning(f"⚠️ DNI/s asociado/s en su cuenta: `{dnis_familia}`. No se encontró coincidencia en la hoja 'BD_Alumnos'. Verifique que los DNI escritos en la pestaña 'Usuarios' coincidan exactamente con los de la planilla de alumnos.")
             else:
-                st.error("⚠️ Su cuenta de familia no tiene ningún DNI válido vinculado en las filas de la planilla de Google Sheets.")
+                st.error("⚠️ Su cuenta de familia tiene un valor inválido o vacío en DNI_Asociado.")
         else:
             c_dni, c_anio = st.columns([2, 1])
             with c_dni:
