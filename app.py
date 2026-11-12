@@ -27,7 +27,6 @@ def load_all_data(sheet_id):
     base_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet="
     
     df_alumnos = pd.read_csv(f"{base_url}BD_Alumnos", dtype=str)
-    # Limpiar espacios en los nombres de columnas de alumnos
     df_alumnos.columns = df_alumnos.columns.str.strip()
     
     df_asistencia = pd.read_csv(f"{base_url}Asistencia")
@@ -76,7 +75,6 @@ except Exception:
 def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia):
     dni_limpio = str(dni_ingresado).replace('.0', '').strip()
     
-    # Normalizar columna DNI en BD_Alumnos para asegurar coincidencia exacta
     df_alumnos['DNI_Limpio'] = df_alumnos['DNI'].astype(str).str.replace('.0', '', regex=False).str.strip()
     alumno = df_alumnos[df_alumnos['DNI_Limpio'] == dni_limpio] if 'DNI' in df_alumnos.columns else pd.DataFrame()
     
@@ -178,11 +176,21 @@ def login_form():
                 for _, row in df_usuarios_init.iterrows():
                     u_sheet = str(row.get('Usuario', '')).strip()
                     p_sheet = str(row.get('Contraseña', '')).strip()
-                    if u_sheet.lower() == str(user_input).strip().lower() and p_sheet == str(pass_input).strip():
+                    
+                    # COMPARACIÓN EXACTA (Respetando mayúsculas y minúsculas)
+                    if u_sheet == str(user_input).strip() and p_sheet == str(pass_input).strip():
                         st.session_state.logged_in = True
                         st.session_state.user_role = str(row.get('Rol', '')).strip()
                         st.session_state.user_name = str(row.get('Nombre', '')).strip()
-                        st.session_state.dni_vinculado = str(row.get('DNI_Asociado', '0')).strip()
+                        
+                        # Buscar dinámicamente la columna de DNI asociado sin importar espacios o variaciones
+                        dni_val = "0"
+                        for col_name in row.index:
+                            if "dni" in col_name.lower() and "asociado" in col_name.lower():
+                                dni_val = str(row.get(col_name, '0'))
+                                break
+                        
+                        st.session_state.dni_vinculado = dni_val.strip()
                         user_encontrado = True
                         break
             
@@ -406,7 +414,7 @@ else:
         if es_rol_familia:
             dni_raw = str(st.session_state.dni_vinculado).strip()
             
-            # Separar por comas y limpiar cada DNI asegurando formato entero/texto plano
+            # Limpieza robusta de la cadena DNI_Asociado (admite comas, puntos y espacios)
             dnis_familia = []
             if dni_raw and dni_raw != '0' and dni_raw.lower() != 'nan':
                 for parte in dni_raw.replace(';', ',').split(','):
@@ -420,7 +428,6 @@ else:
                 nombres_hijos = []
                 mapa_dnis = {}
                 
-                # Crear columna normalizada de DNI para la búsqueda
                 df_alumnos['DNI_Limpio'] = df_alumnos['DNI'].astype(str).str.replace('.0', '', regex=False).str.strip()
                 
                 for d in dnis_familia:
@@ -446,7 +453,7 @@ else:
                 else:
                     st.warning(f"⚠️ DNI/s asociado/s en su cuenta: `{dnis_familia}`. No se encontró coincidencia en la hoja 'BD_Alumnos'. Verifique que los DNI escritos en la pestaña 'Usuarios' coincidan exactamente con los de la planilla de alumnos.")
             else:
-                st.error(f"⚠️ Su cuenta de familia tiene un valor inválido en DNI_Asociado: `{dni_raw}`.")
+                st.error(f"⚠️ Su cuenta de familia tiene un valor inválido o vacío en DNI_Asociado: `{dni_raw}`.")
         else:
             # Vista libre exclusiva para Director/a o Docente
             c_dni, c_anio = st.columns([2, 1])
