@@ -218,6 +218,20 @@ def login_form():
             else:
                 st.error("Usuario o contraseña incorrectos.")
 
+        st.markdown("---")
+        
+        # --- BOTÓN DE DESCARGA DEL MANUAL DE USUARIO ---
+        try:
+            with open("manual_usuario.pdf", "rb") as file:
+                st.download_button(
+                    label="📥 Descargar Manual de Usuario (PDF)",
+                    data=file,
+                    file_name="Manual_Usuario.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+        except Exception:
+            st.info("💡 El manual de usuario estará disponible próximamente para su descarga.")
 if not st.session_state.logged_in:
     login_form()
 else:
