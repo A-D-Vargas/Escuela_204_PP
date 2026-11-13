@@ -19,9 +19,9 @@ SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qIhJlo0"
 SHEET_ID_MATEMATICA = "1qojneCkGcYNDadTV1kiNajMm0pLhMnGvZWxgjrb63MY"
 SHEET_ID_EDFISICA = "1STBfC20E98khRVTZGBp15AjIeeRdK3i4-L3WBNVNcCY"
 
-# -------------------------------------------------------------------
+# ===================================================================
 # 1. CARGA AUTOMÁTICA DE DATOS DESDE GOOGLE SHEETS
-# -------------------------------------------------------------------
+# ===================================================================
 @st.cache_data(ttl=300)
 def load_all_data(sheet_id):
     base_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet="
@@ -41,7 +41,7 @@ def load_all_data(sheet_id):
         
     return df_alumnos, df_asistencia, df_reporte, df_alertas, df_usuarios
 
-# Función para cargar las notas directamente desde las planillas individuales de cada materia
+# Cargar las notas directamente desde las planillas individuales de cada materia
 @st.cache_data(ttl=300)
 def load_notas_materias():
     materias_dfs = {}
@@ -69,9 +69,9 @@ try:
 except Exception:
     df_usuarios_init = pd.DataFrame()
 
-# -------------------------------------------------------------------
+# ===================================================================
 # 2. FUNCIÓN AUXILIAR DE RENDERIZADO DE ESTUDIANTE (BOLETÍN Y ASISTENCIA)
-# -------------------------------------------------------------------
+# ===================================================================
 def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia):
     dni_limpio = str(dni_ingresado).replace('.0', '').strip()
     
@@ -159,9 +159,9 @@ def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asist
     else:
         st.warning(f"No se encontró ningún estudiante registrado con el DNI: {dni_ingresado}")
 
-# -------------------------------------------------------------------
+# ===================================================================
 # 3. CONTROL DE SESIÓN Y AUTENTICACIÓN
-# -------------------------------------------------------------------
+# ===================================================================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_role = None
@@ -239,9 +239,9 @@ else:
         
     st.sidebar.markdown("---")
 
-    # -------------------------------------------------------------------
+    # ===============================================================
     # 4. RUTEO DE MENÚ SEGÚN ROL
-    # -------------------------------------------------------------------
+    # ===============================================================
     es_rol_familia_menu = "familia" in str(st.session_state.user_role).lower() or "alumnado" in str(st.session_state.user_role).lower()
 
     if es_rol_familia_menu:
@@ -263,10 +263,11 @@ else:
 
     menu_seleccionado = st.sidebar.radio("Navegación:", opciones_menu)
 
-    # -------------------------------------------------------------------
-    # 5. DESARROLLO DE MÓDULOS
-    # -------------------------------------------------------------------
+    # ===============================================================
+    # 5. DESARROLLO DE MÓDULOS DE LA APLICACIÓN
+    # ===============================================================
     
+    # --- MÓDULO 1: DASHBOARD & ALERTAS ---
     if menu_seleccionado == "📊 Dashboard & Alertas":
         st.title("📊 Panel Institucional y Semáforo de Asistencia")
         
@@ -342,8 +343,12 @@ else:
         # --- SECCIÓN DE MEDIDAS SUGERIDAS ---
         st.markdown("---")
         st.subheader("💡 Guía de Abordaje y Medidas Sugeridas")
-        st.image("medidas_sugeridas.jpg", use_container_width=True)
+        try:
+            st.image("medidas_sugeridas.jpg", use_container_width=True)
+        except Exception:
+            st.warning("⚠️ La imagen 'medidas_sugeridas.jpg' no se encuentra en el repositorio. Sube la imagen a GitHub para visualizarla aquí.")
             
+    # --- MÓDULO 2: CARGAR ASISTENCIA / NOTAS ---
     elif menu_seleccionado == "📝 Cargar Asistencia / Notas":
         st.title("📝 Gestión y Registro de Datos Escolares")
         tab_asistencia, tab_notas = st.tabs(["📋 Asistencia", "✏️ Calificaciones"])
@@ -355,9 +360,12 @@ else:
 
         with tab_notas:
             st.subheader("Carga de Calificaciones Trimestrales")
-            st.link_button("🔗 Abrir Formulario de notas (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLSdqJ8wLoft_ujZrcCfwymKZjj5SICRyn-hsEGsT7J5qnbr_tw/viewform?usp=dialog")
+            st.link_button("🔗 Abrir Formulario de notas Lengua (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLSckLpwKOI3EcEnvjbhQp-A_oUnryB0WQz2v4rrNmCCdUfygMw/viewform?usp=sharing&ouid=117246198771789394059")
+            st.link_button("🔗 Abrir Formulario de notas Matemáticas (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLScbGUUsG9aVPGoHFwVDxQnqKL4MDrJSX22WN3Fz8sBwYONngQ/viewform?usp=sharing&ouid=117246198771789394059")
+            st.link_button("🔗 Abrir Formulario de notas Educación Física (Google Forms)", "https://docs.google.com/forms/d/e/1FAIpQLSdPsKx6SEjMsviNWWGgNQmQk6R83CUx1_JbT08kkQqfLZuamA/viewform?usp=sharing&ouid=117246198771789394059")               
             st.markdown("---")
             
+    # --- MÓDULO 3: LEGAJO DE ALUMNOS ---
     elif menu_seleccionado == "👥 Legajo de Alumnos":
         st.title("👥 Base de Datos de Alumnos")
         columnas_padron = [c for c in df_alumnos.columns if not str(c).startswith('Unnamed') and c != 'DNI_Limpio']
@@ -376,6 +384,7 @@ else:
 
         st.dataframe(df_alumnos_limpio, use_container_width=True, hide_index=True)
 
+    # --- MÓDULO 4: PLANILLA DE ASISTENCIA ---
     elif menu_seleccionado == "📅 Planilla de Asistencia":
         st.title("📅 Planilla de Asistencia")
         col_nombre = df_asistencia.columns[1] if len(df_asistencia.columns) > 1 else df_asistencia.columns[0]
@@ -429,6 +438,7 @@ else:
             df_asistencia_limpio.columns = nuevos_encabezados
             st.dataframe(df_asistencia_limpio, use_container_width=True, hide_index=True)
             
+    # --- MÓDULO 5: CONSULTA DE BOLETÍN / LEGAJO ---
     elif menu_seleccionado == "🔍 Consulta de Boletín / Legajo":
         st.title("🔍 Consulta Individual de Estudiante e Historial")
         
