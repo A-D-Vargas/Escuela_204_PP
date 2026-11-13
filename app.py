@@ -15,7 +15,7 @@ SHEET_ID = "1w4bE2GRG8UDYHkDEBNYpd22nDeX9D3MCVgALKDP8UJw"
 # -------------------------------------------------------------------
 # IDS DE PLANILLAS DE NOTAS POR MATERIA
 # -------------------------------------------------------------------
-SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qlHjlo0"
+SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qIhJlo0"
 SHEET_ID_MATEMATICA = "1qojneCkGcYNDadTV1kiNajMm0pLhMnGvZWxgjrb63MY"
 SHEET_ID_EDFISICA = "1STBfC20E98khRVTZGBp15AjIeeRdK3i4-L3WBNVNcCY"
 
@@ -41,7 +41,7 @@ def load_all_data(sheet_id):
         
     return df_alumnos, df_asistencia, df_reporte, df_alertas, df_usuarios
 
-# Función auxiliar para cargar notas desde la "Hoja 1" tabular de cada materia
+# Función para cargar las notas directamente desde las planillas individuales de cada materia
 @st.cache_data(ttl=300)
 def load_notas_materias():
     materias_dfs = {}
@@ -56,7 +56,6 @@ def load_notas_materias():
     for materia, sid in ids_materias.items():
         try:
             df = pd.read_csv(base_url.format(sid), dtype=str)
-            # Limpiar espacios en los nombres de las columnas de notas
             df.columns = df.columns.str.strip()
             materias_dfs[materia] = df
         except Exception:
@@ -123,7 +122,7 @@ def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asist
 
         st.markdown("---")
 
-        # --- B. BOLETÍN DE CALIFICACIONES ---
+        # --- B. BOLETÍN DE CALIFICACIONES (Desde las planillas individuales de cada materia) ---
         st.subheader(f"📝 Boletín de Calificaciones - Ciclo {anio_sel}")
         materias_dict = load_notas_materias()
         boletin_registros = []
@@ -132,7 +131,6 @@ def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asist
             if df_mat.empty:
                 continue
             
-            # Identificar nombres de columnas de forma flexible (ignorando mayúsculas/minúsculas y espacios)
             cols_map = {c.lower().strip(): c for c in df_mat.columns}
             col_alu = cols_map.get('alumno', None)
             col_anio = cols_map.get('año', cols_map.get('anio', None))
@@ -140,7 +138,6 @@ def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asist
             col_trim = cols_map.get('trimestre', None)
             
             if col_alu and col_nota:
-                # Filtrar de forma robusta por nombre de alumno y año
                 for _, row in df_mat.iterrows():
                     val_alu = str(row.get(col_alu, '')).strip()
                     val_anio = str(row.get(col_anio, '')).replace('.0', '').strip() if col_anio else str(anio_sel)
@@ -341,6 +338,11 @@ else:
         st.markdown("---")
         st.subheader("⚠️ Estudiantes en Riesgo de Deserción")
         st.dataframe(df_alertas_limpio, use_container_width=True, hide_index=True)
+        
+        # --- SECCIÓN DE MEDIDAS SUGERIDAS ---
+        st.markdown("---")
+        st.subheader("💡 Guía de Abordaje y Medidas Sugeridas")
+        st.image("medidas_sugeridas.jpg", use_container_width=True)
             
     elif menu_seleccionado == "📝 Cargar Asistencia / Notas":
         st.title("📝 Gestión y Registro de Datos Escolares")
@@ -462,7 +464,7 @@ else:
                 elif len(nombres_hijos) == 1:
                     hijo_sel_nombre = nombres_hijos[0]
                     dni_ingresado = mapa_dnis[hijo_sel_nombre]
-                    renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos,_asistencia=df_asistencia)
+                    renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asistencia)
                 else:
                     st.warning(f"⚠️ DNI/s asociado/s en su cuenta: `{dnis_familia}`. No se encontró coincidencia en la hoja 'BD_Alumnos'. Verifique que los DNI escritos en la pestaña 'Usuarios' coincidan exactamente con los de la planilla de alumnos.")
             else:
