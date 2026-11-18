@@ -17,7 +17,7 @@ Plataforma web institucional desarrollada en **Python** y **Streamlit** para la 
 * **Gestión de Legajos y Matrícula:**
   * Padrón de alumnos con filtros dinámicos por grado y sección.
 * **Autenticación Basada en Roles (RBAC):**
-  * Accesos diferenciados para **Directivos/Administradores**, **Docentes** y **Familias/Alumnos** (con soporte para múltiples vínculos de DNI por cuenta familiar).
+  * Accesos diferenciados para **Directivos**, **Docentes** y **Familias/Alumnos** (con soporte para múltiples vínculos de DNI por cuenta familiar).
 * **Documentación Integrada:**
   * Acceso directo al formulario de carga institucional y descarga del Manual de Usuario en formato PDF.
 
