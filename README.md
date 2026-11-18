@@ -41,3 +41,19 @@ Plataforma web institucional desarrollada en **Python** y **Streamlit** para la 
 ├── manual_usuario.pdf      # Manual oficial para usuarios del sistema
 ├── medidas_sugeridas.jpg   # Infografía de abordaje institucional para el Dashboard
 └── README.md               # Documentación del proyecto
+```
+---
+# ⚙️ Instalación y Ejecución Local
+1. Clona este repositorio en tu computadora:
+* git clone [https://github.com/A-D-Vargas/Escuela_204_PP.git](https://github.com/A-D-Vargas/Escuela_204_PP.git)
+2. Entra a la carpeta del proyecto:
+* cd Escuela_204_PP
+3. Instala las dependencias necesarias indicadas en el archivo requirements.txt:
+* pip install -r requirements.txt
+4. Ejecuta la aplicación de Streamlit:
+* streamlit run app.py
+---
+# Autores:
+* Sosa Ramiro
+* Vargas Alex
+* Galeano Mariela
