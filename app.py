@@ -12,13 +12,6 @@ st.set_page_config(
 # ID de la planilla compartida de Google Sheets principal
 SHEET_ID = "1w4bE2GRG8UDYHkDEBNYpd22nDeX9D3MCVgALKDP8UJw"
 
-# -------------------------------------------------------------------
-# IDS DE PLANILLAS DE NOTAS POR MATERIA
-# -------------------------------------------------------------------
-SHEET_ID_LENGUA = "1PqxiHPEHtLtgyAXwRG60k-hex1F1NYR0YgJ3qIhJlo0"
-SHEET_ID_MATEMATICA = "1qojneCkGcYNDadTV1kiNajMm0pLhMnGvZWxgjrb63MY"
-SHEET_ID_EDFISICA = "1STBfC20E98khRVTZGBp15AjIeeRdK3i4-L3WBNVNcCY"
-
 # ===================================================================
 # 1. CARGA AUTOMÁTICA DE DATOS DESDE GOOGLE SHEETS
 # ===================================================================
@@ -41,27 +34,16 @@ def load_all_data(sheet_id):
         
     return df_alumnos, df_asistencia, df_reporte, df_alertas, df_usuarios
 
-# Cargar las notas directamente desde las planillas individuales de cada materia
+# Cargar las notas directamente desde la pestaña unificada "Notas"
 @st.cache_data(ttl=300)
-def load_notas_materias():
-    materias_dfs = {}
-    ids_materias = {
-        "Lengua": SHEET_ID_LENGUA,
-        "Matemática": SHEET_ID_MATEMATICA,
-        "Educación Física": SHEET_ID_EDFISICA
-    }
-    
-    base_url = "https://docs.google.com/spreadsheets/d/{}/gviz/tq?tqx=out:csv&sheet=Hoja%201"
-    
-    for materia, sid in ids_materias.items():
-        try:
-            df = pd.read_csv(base_url.format(sid), dtype=str)
-            df.columns = df.columns.str.strip()
-            materias_dfs[materia] = df
-        except Exception:
-            materias_dfs[materia] = pd.DataFrame()
-            
-    return materias_dfs
+def load_notas_unificadas(sheet_id):
+    base_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=Notas"
+    try:
+        df_notas = pd.read_csv(base_url, dtype=str)
+        df_notas.columns = df_notas.columns.str.strip()
+        return df_notas
+    except Exception:
+        return pd.DataFrame(columns=["Materia", "Alumno", "Grado/Sección", "Trimestre", "Año", "Nota"])
 
 # Cargar datos iniciales para validación de usuarios
 try:
@@ -122,29 +104,29 @@ def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asist
 
         st.markdown("---")
 
-        # --- B. BOLETÍN DE CALIFICACIONES (Desde las planillas individuales de cada materia) ---
+        # --- B. BOLETÍN DE CALIFICACIONES ---
         st.subheader(f"📝 Boletín de Calificaciones - Ciclo {anio_sel}")
-        materias_dict = load_notas_materias()
+        df_notas_global = load_notas_unificadas(SHEET_ID)
         boletin_registros = []
         
-        for materia, df_mat in materias_dict.items():
-            if df_mat.empty:
-                continue
-            
-            cols_map = {c.lower().strip(): c for c in df_mat.columns}
+        if not df_notas_global.empty:
+            cols_map = {c.lower().strip(): c for c in df_notas_global.columns}
+            col_materia = cols_map.get('materia', cols_map.get('asignatura', None))
             col_alu = cols_map.get('alumno', None)
             col_anio = cols_map.get('año', cols_map.get('anio', None))
             col_nota = cols_map.get('nota', None)
             col_trim = cols_map.get('trimestre', None)
             
             if col_alu and col_nota:
-                for _, row in df_mat.iterrows():
+                for _, row in df_notas_global.iterrows():
                     val_alu = str(row.get(col_alu, '')).strip()
                     val_anio = str(row.get(col_anio, '')).replace('.0', '').strip() if col_anio else str(anio_sel)
                     
                     if val_alu.lower() == str(nombre).strip().lower() and (val_anio == str(anio_sel) or val_anio == '' or val_anio == 'nan'):
+                        materia = str(row.get(col_materia, 'Materia')).strip() if col_materia else 'Materia'
                         trimestre = str(row.get(col_trim, 'Trimestre')).strip() if col_trim else 'Trimestre'
                         calificacion = row.get(col_nota, '')
+                        
                         if pd.notnull(calificacion) and str(calificacion).strip() != '':
                             boletin_registros.append({
                                 "Asignatura / Período": f"{materia} ({trimestre})",
@@ -155,7 +137,7 @@ def renderizar_consulta_estudiante(dni_ingresado, anio_sel, df_alumnos, df_asist
             df_boletin = pd.DataFrame(boletin_registros)
             st.dataframe(df_boletin, use_container_width=True, hide_index=True)
         else:
-            st.info(f"ℹ️ No se registran calificaciones en el boletín para el ciclo lectivo **{anio_sel}**.")
+            st.info(f"ℹ️ No se registran calificaciones en el boletín unificado para el ciclo lectivo **{anio_sel}**.")
     else:
         st.warning(f"No se encontró ningún estudiante registrado con el DNI: {dni_ingresado}")
 
@@ -232,6 +214,7 @@ def login_form():
                 )
         except Exception:
             st.info("💡 El manual de usuario estará disponible próximamente para su descarga.")
+
 if not st.session_state.logged_in:
     login_form()
 else:
